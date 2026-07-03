@@ -240,47 +240,19 @@
       }
     }
 
-    async function importAndReload(count) {
-      const resultEl = $('#importResult');
-      resultEl.innerHTML = `<div class="auth-success" style="display:block;">✅ ${count} preguntas importadas correctamente.</div>`;
-      show(resultEl);
-      await loadCategories();
-      renderCategorySelect();
-      if (adminState.currentCategoryId) {
-        allQuestions = await loadQuestions(null);
-        renderQuestions(allQuestions);
-      }
-    }
-
-    async function handleImportFile(file) {
-      const resultEl = $('#importResult');
-      hide(resultEl);
-      try {
-        const count = await handleImport(file);
-        const savedCallback = importAndReload;
-        savedCallback(count);
-      } catch (err) {
-        resultEl.innerHTML = `<div class="auth-error" style="display:block;">❌ ${err.message}</div>`;
-        show(resultEl);
-      }
-    }
-
     let allQuestions = [];
 
-    // Save original and wrap
     const origRefresh = refreshQuestions;
     refreshQuestions = async function() {
       allQuestions = await loadQuestions(adminState.currentTopicId);
       renderQuestions(allQuestions);
     };
 
-    // Override importAndReload inline
-    const origHandleImport = handleImport;
-    const handleImportFile = async function(file) {
+    async function handleImportFile(file) {
       const resultEl = $('#importResult');
       hide(resultEl);
       try {
-        const count = await origHandleImport(file);
+        const count = await handleImport(file);
         resultEl.innerHTML = `<div class="auth-success" style="display:block;">✅ ${count} preguntas importadas correctamente.</div>`;
         show(resultEl);
         await loadCategories();
@@ -293,7 +265,7 @@
         resultEl.innerHTML = `<div class="auth-error" style="display:block;">❌ ${err.message}</div>`;
         show(resultEl);
       }
-    };
+    }
 
     checkSession().then(session => {
       if (!session) { window.location.href = 'index.html'; return; }
