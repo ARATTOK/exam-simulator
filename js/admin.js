@@ -1,32 +1,32 @@
-/* ============================================
-   SimuExam — Admin CRUD (API backend)
-   ============================================ */
-
 let adminState = {
   categories: [],
+  exams: [],
   topics: [],
-  currentCategoryId: null,
+  currentExamId: null,
+  currentTopicId: null,
 };
 
-// --- Categories ---
+// ==========================================
+// CATEGORIES
+// ==========================================
+
 async function loadCategories() {
   const data = await apiGet('/api/categories');
   adminState.categories = data || [];
-  return data;
 }
 
 function renderCategories() {
   const tbody = $('#categoriesTable tbody');
   if (!tbody) return;
   if (!adminState.categories.length) {
-    html(tbody, '<tr><td colspan="4" class="text-center" style="padding:32px;color:var(--text-muted);">No hay categorías. Crea la primera.</td></tr>');
+    html(tbody, '<tr><td colspan="4" class="text-center" style="padding:32px;color:var(--text-muted);">No hay categorías.</td></tr>');
     return;
   }
   html(tbody, adminState.categories.map(c => `
     <tr>
       <td><strong>${esc(c.name)}</strong></td>
       <td class="text-muted">${esc(c.description || '—')}</td>
-      <td><span class="badge badge-primary">${c.topic_count || 0} temas</span></td>
+      <td><span class="badge badge-primary">${c.exam_count || 0} exámenes</span></td>
       <td>
         <div class="table-actions">
           <button class="btn btn-sm btn-secondary" onclick="editCategory('${c.id}')">✎</button>
@@ -41,17 +41,14 @@ async function saveCategory() {
   const id = $('#catId').value;
   const name = $('#catName').value.trim();
   const desc = $('#catDesc').value.trim();
-  if (!name) return showFormError('catFormError', 'El nombre es obligatorio');
-
+  if (!name) return toastError('El nombre es obligatorio');
   try {
     if (id) {
       await apiPut('/api/categories/' + id, { name, description: desc });
     } else {
       await apiPost('/api/categories', { name, description: desc });
     }
-  } catch (err) {
-    return toastError(err.message);
-  }
+  } catch (err) { return toastError(err.message); }
   closeModal('#categoryModal');
   await loadCategories();
   renderCategories();
@@ -65,15 +62,12 @@ function editCategory(id) {
   $('#catName').value = c.name;
   $('#catDesc').value = c.description || '';
   $('#catModalTitle').textContent = 'Editar categoría';
-  $('#catFormError').style.display = 'none';
   openModal('#categoryModal');
 }
 
 async function deleteCategory(id) {
-  if (!confirm('¿Eliminar esta categoría? También se eliminarán todas sus preguntas.')) return;
-  try {
-    await apiDelete('/api/categories/' + id);
-  } catch (err) { return toastError('Error: ' + err.message); }
+  if (!confirm('¿Eliminar esta categoría?')) return;
+  try { await apiDelete('/api/categories/' + id); } catch (err) { return toastError(err.message); }
   await loadCategories();
   renderCategories();
   toastSuccess('Categoría eliminada');
@@ -84,54 +78,185 @@ function resetCategoryForm() {
   $('#catName').value = '';
   $('#catDesc').value = '';
   $('#catModalTitle').textContent = 'Nueva categoría';
-  $('#catFormError').style.display = 'none';
 }
 
-// --- Topics ---
-async function loadTopics(categoryId) {
-  if (!categoryId) return [];
-  const data = await apiGet('/api/topics?category_id=' + categoryId);
-  adminState.topics = data || [];
-  return data;
+// ==========================================
+// EXAM DEFINITIONS
+// ==========================================
+
+async function loadExams() {
+  const data = await apiGet('/api/exam-definitions');
+  adminState.exams = data || [];
 }
 
-function renderTopics() {
-  const tbody = $('#topicsTable tbody');
-  if (!tbody) return;
-  if (!adminState.topics.length) {
-    html(tbody, '<tr><td colspan="3" class="text-center" style="padding:32px;color:var(--text-muted);">No hay temas en esta categoría.</td></tr>');
+function renderExams() {
+  const container = $('#examsTable tbody');
+  if (!container) return;
+  if (!adminState.exams.length) {
+    html(container, '<tr><td colspan="5" class="text-center" style="padding:32px;color:var(--text-muted);">No hay exámenes. Crea el primero.</td></tr>');
     return;
   }
-  html(tbody, adminState.topics.map(t => `
-    <tr>
-      <td><strong>${esc(t.name)}</strong></td>
-      <td><span class="badge badge-primary">${t.question_count || 0} preguntas</span></td>
-      <td>
+  html(container, adminState.exams.map(e => `
+    <tr style="cursor:pointer;" class="${e.id === adminState.currentExamId ? 'selected' : ''}" onclick="selectExam('${e.id}')">
+      <td><strong>${esc(e.name)}</strong></td>
+      <td class="text-muted">${esc(e.category_name || '—')}</td>
+      <td><span class="badge badge-primary">${e.topic_count || 0} temas</span></td>
+      <td><span class="badge badge-primary">${e.question_count || 0} preguntas</span></td>
+      <td onclick="event.stopPropagation()">
         <div class="table-actions">
-          <button class="btn btn-sm btn-secondary" onclick="editTopic('${t.id}')">✎</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteTopic('${t.id}')">✕</button>
+          <button class="btn btn-sm btn-secondary" onclick="editExam('${e.id}')">✎</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteExam('${e.id}')">✕</button>
         </div>
       </td>
     </tr>
   `).join(''));
 }
 
-async function saveTopic() {
-  const id = $('#topicId').value;
-  const name = $('#topicName').value.trim();
-  if (!name) return showFormError('topicFormError', 'El nombre es obligatorio');
-  if (!adminState.currentCategoryId) return showFormError('topicFormError', 'Selecciona una categoría');
+function selectExam(examId) {
+  adminState.currentExamId = examId;
+  renderExams();
+  const exam = adminState.exams.find(e => e.id === examId);
+  if (exam) {
+    $('#examDetailName').textContent = exam.name;
+    $('#examDetailInfo').textContent = `${exam.question_count || 0} preguntas · ${exam.topic_count || 0} temas`;
+  }
+  show('#examDetail');
+  show('#examSubTabs');
+  loadExamTopics(examId);
+}
+
+function deselectExam() {
+  adminState.currentExamId = null;
+  adminState.currentTopicId = null;
+  hide('#examDetail');
+  hide('#examSubTabs');
+  hide('#topicDetail');
+  renderExams();
+}
+
+async function saveExam() {
+  const id = $('#examId').value;
+  const name = $('#examName').value.trim();
+  const desc = $('#examDesc').value.trim();
+  const category_id = $('#examCategory').value || null;
+  const passing_score = parseFloat($('#examPassingScore').value) || 70;
+  const suggested_minutes = parseInt($('#examMinutes').value) || 0;
+  const official_url = $('#examUrl').value.trim() || null;
+  if (!name) return toastError('El nombre es obligatorio');
 
   try {
     if (id) {
-      await apiPut('/api/topics/' + id, { name });
+      await apiPut('/api/exam-definitions/' + id, { name, description: desc, category_id, passing_score, suggested_minutes, official_url });
     } else {
-      await apiPost('/api/topics', { name, category_id: adminState.currentCategoryId });
+      await apiPost('/api/exam-definitions', { name, description: desc, category_id, passing_score, suggested_minutes, official_url });
+    }
+  } catch (err) { return toastError(err.message); }
+  closeModal('#examModal');
+  await loadExams();
+  renderExams();
+  toastSuccess(id ? 'Examen actualizado' : 'Examen creado');
+}
+
+function editExam(id) {
+  const e = adminState.exams.find(x => x.id === id);
+  if (!e) return;
+  $('#examId').value = e.id;
+  $('#examName').value = e.name;
+  $('#examDesc').value = e.description || '';
+  $('#examCategory').value = e.category_id || '';
+  $('#examPassingScore').value = e.passing_score || 70;
+  $('#examMinutes').value = e.suggested_minutes || 0;
+  $('#examUrl').value = e.official_url || '';
+  $('#examModalTitle').textContent = 'Editar examen';
+  openModal('#examModal');
+}
+
+function resetExamForm() {
+  $('#examId').value = '';
+  $('#examName').value = '';
+  $('#examDesc').value = '';
+  $('#examCategory').value = '';
+  $('#examPassingScore').value = 70;
+  $('#examMinutes').value = 0;
+  $('#examUrl').value = '';
+  $('#examModalTitle').textContent = 'Nuevo examen';
+  populateExamCategorySelect();
+}
+
+function populateExamCategorySelect() {
+  const sel = $('#examCategory');
+  if (!sel) return;
+  html(sel, `<option value="">Sin categoría</option>
+    ${adminState.categories.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}`);
+}
+
+async function deleteExam(id) {
+  if (!confirm('¿Eliminar este examen? También se eliminarán todas sus preguntas.')) return;
+  try { await apiDelete('/api/exam-definitions/' + id); } catch (err) { return toastError(err.message); }
+  if (adminState.currentExamId === id) deselectExam();
+  await loadExams();
+  renderExams();
+  toastSuccess('Examen eliminado');
+}
+
+// ==========================================
+// EXAM TOPICS
+// ==========================================
+
+async function loadExamTopics(examId) {
+  if (!examId) { adminState.topics = []; renderExamTopics(); return; }
+  const data = await apiGet(`/api/exam-definitions/${examId}/topics`);
+  adminState.topics = data || [];
+  renderExamTopics();
+}
+
+function renderExamTopics() {
+  const container = $('#examTopicsList');
+  if (!container) return;
+  if (!adminState.topics.length) {
+    html(container, '<div class="text-muted text-sm" style="padding:12px;text-align:center;">No hay temas. Crea el primero.</div>');
+    return;
+  }
+  html(container, adminState.topics.map(t => `
+    <div class="topic-item ${t.id === adminState.currentTopicId ? 'selected' : ''}" onclick="selectTopic('${t.id}')">
+      <div class="topic-item-name">${esc(t.name)}</div>
+      <div class="topic-item-count">${t.question_count || 0} preguntas</div>
+      <div class="topic-item-actions">
+        <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();editTopic('${t.id}')">✎</button>
+        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteTopic('${t.id}')">✕</button>
+      </div>
+    </div>
+  `).join(''));
+}
+
+function selectTopic(topicId) {
+  adminState.currentTopicId = topicId;
+  renderExamTopics();
+  if (topicId) {
+    const topic = adminState.topics.find(t => t.id === topicId);
+    $('#topicDetailName').textContent = topic ? topic.name : '';
+    show('#topicDetail');
+    show('#topicQuestionActions');
+    loadTopicQuestions(topicId);
+  } else {
+    hide('#topicDetail');
+  }
+}
+
+async function saveExamTopic() {
+  const id = $('#topicId').value;
+  const name = $('#topicName').value.trim();
+  if (!name) return toastError('El nombre es obligatorio');
+  if (!adminState.currentExamId) return toastError('Selecciona un examen');
+  try {
+    if (id) {
+      await apiPut('/api/exam-topics/' + id, { name });
+    } else {
+      await apiPost('/api/exam-topics', { name, exam_definition_id: adminState.currentExamId });
     }
   } catch (err) { return toastError(err.message); }
   closeModal('#topicModal');
-  await loadTopics(adminState.currentCategoryId);
-  renderTopics();
+  await loadExamTopics(adminState.currentExamId);
   toastSuccess(id ? 'Tema actualizado' : 'Tema creado');
 }
 
@@ -141,48 +266,51 @@ function editTopic(id) {
   $('#topicId').value = t.id;
   $('#topicName').value = t.name;
   $('#topicModalTitle').textContent = 'Editar tema';
-  $('#topicFormError').style.display = 'none';
   openModal('#topicModal');
-}
-
-async function deleteTopic(id) {
-  if (!confirm('¿Eliminar este tema?')) return;
-  try { await apiDelete('/api/topics/' + id); } catch (err) { return toastError('Error: ' + err.message); }
-  await loadTopics(adminState.currentCategoryId);
-  renderTopics();
-  toastSuccess('Tema eliminado');
 }
 
 function resetTopicForm() {
   $('#topicId').value = '';
   $('#topicName').value = '';
   $('#topicModalTitle').textContent = 'Nuevo tema';
-  $('#topicFormError').style.display = 'none';
 }
 
-// --- Questions ---
-async function loadQuestions(topicId) {
-  let path = '/api/questions?category_id=' + adminState.currentCategoryId;
-  if (topicId) path += '&topic_id=' + topicId;
-  return await apiGet(path);
+async function deleteTopic(id) {
+  if (!confirm('¿Eliminar este tema?')) return;
+  try { await apiDelete('/api/exam-topics/' + id); } catch (err) { return toastError(err.message); }
+  if (adminState.currentTopicId === id) {
+    adminState.currentTopicId = null;
+    hide('#topicDetail');
+  }
+  await loadExamTopics(adminState.currentExamId);
+  toastSuccess('Tema eliminado');
 }
 
-function renderQuestions(questions) {
-  const tbody = $('#questionsTable tbody');
-  if (!tbody) return;
+// ==========================================
+// EXAM QUESTIONS
+// ==========================================
+
+async function loadTopicQuestions(topicId) {
+  if (!topicId) { renderTopicQuestions([]); return; }
+  const data = await apiGet(`/api/exam-topics/${topicId}/questions`);
+  renderTopicQuestions(data || []);
+}
+
+function renderTopicQuestions(questions) {
+  const container = $('#questionsBody');
+  if (!container) return;
   if (!questions.length) {
-    html(tbody, '<tr><td colspan="5" class="text-center" style="padding:32px;color:var(--text-muted);">No hay preguntas.</td></tr>');
+    html(container, '<tr><td colspan="5" class="text-center" style="padding:32px;color:var(--text-muted);">No hay preguntas en este tema.</td></tr>');
     return;
   }
-  html(tbody, questions.map(q => {
-    const correctCount = (q.answers || []).filter(a => a.is_correct).length;
-    const totalCount = (q.answers || []).length;
+  html(container, questions.map(q => {
+    const correctCount = (q.options || []).filter(o => o.is_correct).length;
+    const totalCount = (q.options || []).length;
     return `
     <tr>
       <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(q.text)}</td>
       <td>${q.image_url ? '<span class="badge badge-primary">📷</span>' : '<span class="text-muted">—</span>'}</td>
       <td><span class="badge ${correctCount > 0 ? 'badge-success' : 'badge-error'}">${correctCount}/${totalCount}</span></td>
-      <td><span class="text-muted" style="font-size:0.8rem;">${esc(q.topic_name || '—')}</span></td>
       <td>
         <div class="table-actions">
           <button class="btn btn-sm btn-secondary" onclick="editQuestion('${q.id}')">✎</button>
@@ -196,60 +324,49 @@ function renderQuestions(questions) {
 async function saveQuestion() {
   const id = $('#qId').value;
   const text = $('#qText').value.trim();
-  if (!text) return showFormError('qFormError', 'El texto de la pregunta es obligatorio');
-  if (!adminState.currentCategoryId) return showFormError('qFormError', 'Selecciona una categoría');
+  if (!text) return toastError('El texto de la pregunta es obligatorio');
+  if (!adminState.currentTopicId) return toastError('Selecciona un tema');
 
-  const topicId = $('#qTopic').value || null;
   const imageUrl = $('#qImage').value.trim() || null;
   const explanation = $('#qExplanation').value.trim() || null;
 
   try {
     let questionId = id;
     if (id) {
-      await apiPut('/api/questions/' + id, { topic_id: topicId, text, image_url: imageUrl, explanation });
+      await apiPut('/api/exam-questions/' + id, { text, image_url: imageUrl, explanation });
     } else {
-      const q = await apiPost('/api/questions', { category_id: adminState.currentCategoryId, topic_id: topicId, text, image_url: imageUrl, explanation });
+      const q = await apiPost('/api/exam-questions', { exam_topic_id: adminState.currentTopicId, text, image_url: imageUrl, explanation });
       questionId = q.id;
     }
 
-    // Save answers
-    const answerEls = $$('#answersContainer .answer-row');
-    const answers = [];
-    for (const row of answerEls) {
-      const answerText = row.querySelector('.answer-text').value.trim();
-      const isCorrect = row.querySelector('.answer-correct').checked;
-      if (answerText) answers.push({ text: answerText, is_correct: isCorrect });
+    const optionEls = $$('#optionsContainer .option-row');
+    const options = [];
+    for (const row of optionEls) {
+      const optText = row.querySelector('.option-text').value.trim();
+      const isCorrect = row.querySelector('.option-correct').checked;
+      if (optText) options.push({ text: optText, is_correct: isCorrect });
     }
 
-    await apiPut('/api/questions/' + questionId + '/answers', { answers });
+    await apiPut('/api/exam-questions/' + questionId + '/options', { options });
   } catch (err) { return toastError(err.message); }
 
   closeModal('#questionModal');
-  await refreshQuestions();
+  await loadTopicQuestions(adminState.currentTopicId);
   toastSuccess(id ? 'Pregunta actualizada' : 'Pregunta creada');
 }
 
 function editQuestion(id) {
-  apiGet('/api/questions?category_id=' + adminState.currentCategoryId).then(questions => {
+  apiGet(`/api/exam-topics/${adminState.currentTopicId}/questions`).then(questions => {
     const q = questions.find(x => x.id === id);
     if (!q) return;
     $('#qId').value = q.id;
     $('#qText').value = q.text;
     $('#qExplanation').value = q.explanation || '';
     $('#qImage').value = q.image_url || '';
-    populateTopicSelect(q.topic_id || '');
     $('#qModalTitle').textContent = 'Editar pregunta';
-    $('#qFormError').style.display = 'none';
-    renderAnswerRows(q.answers || []);
+    renderOptionRows(q.options || []);
     openModal('#questionModal');
   });
-}
-
-async function deleteQuestion(id) {
-  if (!confirm('¿Eliminar esta pregunta permanentemente?')) return;
-  try { await apiDelete('/api/questions/' + id); } catch (err) { return toastError('Error: ' + err.message); }
-  await refreshQuestions();
-  toastSuccess('Pregunta eliminada');
 }
 
 function resetQuestionForm() {
@@ -258,52 +375,64 @@ function resetQuestionForm() {
   $('#qExplanation').value = '';
   $('#qImage').value = '';
   $('#qModalTitle').textContent = 'Nueva pregunta';
-  $('#qFormError').style.display = 'none';
-  renderAnswerRows([]);
-  populateTopicSelect('');
+  renderOptionRows([]);
 }
 
-function renderAnswerRows(answers) {
-  const container = $('#answersContainer');
-  if (!answers.length) answers = [{ text: '', is_correct: false }];
-  html(container, answers.map((a, i) => `
-    <div class="answer-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
-      <input type="checkbox" class="answer-correct" ${a.is_correct ? 'checked' : ''} style="width:22px;height:22px;">
-      <input type="text" class="answer-text form-input" value="${esc(a.text)}" placeholder="Texto de la respuesta" style="flex:1;">
-      <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('.answer-row').remove()">✕</button>
+function renderOptionRows(options) {
+  const container = $('#optionsContainer');
+  if (!options.length) options = [{ text: '', is_correct: false }];
+  html(container, options.map((o, i) => `
+    <div class="option-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+      <input type="checkbox" class="option-correct" ${o.is_correct ? 'checked' : ''} style="width:22px;height:22px;">
+      <input type="text" class="option-text form-input" value="${esc(o.text)}" placeholder="Texto de la opción" style="flex:1;">
+      <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('.option-row').remove()">✕</button>
     </div>
   `).join(''));
 }
 
-function addAnswerRow() {
-  const container = $('#answersContainer');
-  const i = container.children.length + 1;
+function addOptionRow() {
+  const container = $('#optionsContainer');
   const div = document.createElement('div');
-  div.className = 'answer-row';
+  div.className = 'option-row';
   div.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;';
   div.innerHTML = `
-    <input type="checkbox" class="answer-correct" style="width:22px;height:22px;">
-    <input type="text" class="answer-text form-input" placeholder="Texto de la respuesta" style="flex:1;">
-    <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('.answer-row').remove()">✕</button>
+    <input type="checkbox" class="option-correct" style="width:22px;height:22px;">
+    <input type="text" class="option-text form-input" placeholder="Texto de la opción" style="flex:1;">
+    <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('.option-row').remove()">✕</button>
   `;
   container.appendChild(div);
 }
 
-function populateTopicSelect(selected) {
-  const sel = $('#qTopic');
-  if (!sel) return;
-  html(sel, `<option value="">Sin tema</option>
-    ${adminState.topics.map(t => `<option value="${t.id}" ${t.id === selected ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}`);
+async function deleteQuestion(id) {
+  if (!confirm('¿Eliminar esta pregunta permanentemente?')) return;
+  try { await apiDelete('/api/exam-questions/' + id); } catch (err) { return toastError(err.message); }
+  await loadTopicQuestions(adminState.currentTopicId);
+  toastSuccess('Pregunta eliminada');
 }
 
-// --- Questions filter ---
-async function filterQuestionsByTopic() {
-  const topicId = $('#questionTopicFilter').value;
-  const questions = await loadQuestions(topicId || null);
-  renderQuestions(questions);
+// ==========================================
+// IMPORT
+// ==========================================
+
+async function handleImportFile(file) {
+  if (!adminState.currentExamId) return toastError('Selecciona un examen primero');
+  try {
+    const text = await readFileAsText(file);
+    const data = parseJSONorCSV(text);
+    if (!data) throw new Error('Formato inválido. Usa JSON o CSV.');
+    const result = await apiPost(`/api/exam-definitions/${adminState.currentExamId}/import`, { items: data });
+    toastSuccess(result.imported + ' preguntas importadas correctamente.');
+    await loadExamTopics(adminState.currentExamId);
+    if (adminState.currentTopicId) await loadTopicQuestions(adminState.currentTopicId);
+  } catch (err) {
+    toastError(err.message);
+  }
 }
 
-// --- Image upload ---
+// ==========================================
+// IMAGE UPLOAD
+// ==========================================
+
 async function uploadImageFile(input) {
   const file = input.files[0];
   if (!file) return;
@@ -316,113 +445,12 @@ async function uploadImageFile(input) {
   }
 }
 
-// --- Import ---
-async function handleImport(file) {
-  const text = await readFileAsText(file);
-  const data = parseJSONorCSV(text);
-  if (!data) throw new Error('Formato inválido. Usa JSON o CSV.');
+// ==========================================
+// TAB SYSTEM
+// ==========================================
 
-  let imported = 0;
-
-  for (const item of data) {
-    const catName = item.category || item.categoria;
-    if (!catName) continue;
-
-    // Find or create category
-    let cat = adminState.categories.find(c => c.name.toLowerCase() === catName.toLowerCase());
-    if (!cat) {
-      cat = await apiPost('/api/categories', { name: catName });
-      adminState.categories.push(cat);
-    }
-
-    const questionText = item.question || item.pregunta || item.text;
-    if (!questionText) continue;
-
-    const explanation = item.explanation || item.explicacion || '';
-    const imageUrl = item.image || item.imagen || '';
-
-    const q = await apiPost('/api/questions', {
-      category_id: cat.id,
-      text: questionText,
-      explanation,
-      image_url: imageUrl,
-    });
-
-    // Parse answers
-    const answers = [];
-    for (let i = 1; i <= 6; i++) {
-      const answerText = item['answer' + i] || item['respuesta' + i] || item['option' + i] || '';
-      if (!answerText) continue;
-      const isCorrect = item['correct' + i] === 'true' || item['correct' + i] === 'yes' || item['correct' + i] === '1'
-        || item['correct' + i] === true || item['correcta' + i] === 'true';
-      answers.push({ text: answerText, is_correct: isCorrect });
-    }
-
-    if (answers.length > 0) {
-      await apiPut('/api/questions/' + q.id + '/answers', { answers });
-    }
-    imported++;
-  }
-  return imported;
+function switchTab(tab) {
+  $$('.admin-sidebar-link').forEach(l => l.classList.toggle('active', l.dataset.tab === tab));
+  $$('.admin-tab-page').forEach(p => p.classList.toggle('hidden', p.id !== 'tab-' + tab));
+  if (tab !== 'exams') deselectExam();
 }
-
-async function refreshQuestions() {
-  const questions = await loadQuestions(adminState.currentTopicId);
-  renderQuestions(questions);
-}
-
-// --- Category selection ---
-function renderCategorySelect() {
-  const container = $('#categoriesTable tbody');
-  if (!container) return;
-  if (!adminState.categories.length) {
-    html(container, '<tr><td colspan="4" class="text-center" style="padding:32px;color:var(--text-muted);">No hay categorías. Crea la primera.</td></tr>');
-    return;
-  }
-  html(container, adminState.categories.map(c => `
-    <tr style="cursor:pointer;" onclick="onCategoryChange('${c.id}')">
-      <td><strong>${esc(c.name)}</strong></td>
-      <td class="text-muted">${esc(c.description || '—')}</td>
-      <td><span class="badge badge-primary">${c.topic_count || 0} temas</span></td>
-      <td onclick="event.stopPropagation()">
-        <div class="table-actions">
-          <button class="btn btn-sm btn-secondary" onclick="editCategory('${c.id}')">✎</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteCategory('${c.id}')">✕</button>
-        </div>
-      </td>
-    </tr>
-  `).join(''));
-}
-
-async function onCategoryChange(categoryId) {
-  adminState.currentCategoryId = categoryId;
-  if (categoryId) {
-    await loadTopics(categoryId);
-    renderTopics();
-    await refreshQuestions();
-    const cat = adminState.categories.find(c => c.id === categoryId);
-    if (cat) {
-      $('#currentCategoryName').textContent = cat.name;
-      $('#currentCategoryName2').textContent = cat.name;
-    }
-    // Populate topic filter
-    const filter = $('#questionTopicFilter');
-    if (filter) {
-      html(filter, `<option value="">Todos los temas</option>
-        ${adminState.topics.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}`);
-    }
-    $$('.admin-tab').forEach(t => t.classList.remove('hidden'));
-  } else {
-    adminState.topics = [];
-    renderTopics();
-    renderQuestions([]);
-    $$('.admin-tab').forEach(t => t.classList.add('hidden'));
-  }
-}
-
-function showFormError(elId, msg) {
-  const el = $(`#${elId}`);
-  if (el) { el.textContent = msg; el.style.display = 'block'; }
-}
-
-

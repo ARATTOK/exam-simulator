@@ -81,7 +81,7 @@
         sessionStorage.removeItem('simuexam-last-result');
       } else {
         try {
-          const exam = await apiGet('/api/exams/last');
+          const exam = await apiGet('/api/exam-sessions/last');
           if (exam) {
             result = {
               score: exam.score,
@@ -89,6 +89,7 @@
               total: exam.total_questions,
               time: exam.completed_at ? Math.floor((new Date(exam.completed_at) - new Date(exam.started_at)) / 1000) : 0,
               mode: 'exam',
+              exam_name: exam.exam_name,
               done: true,
             };
           }

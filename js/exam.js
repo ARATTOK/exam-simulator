@@ -1,25 +1,24 @@
-/* ============================================
-   SimuExam — Motor de examen cíclico (API)
-   ============================================ */
-
 const EXAM_STATE_KEY = 'simuexam-current-exam';
 let examState = null;
 let examTimerInterval = null;
 let currentQuestionData = null;
 
-async function initExam(categoryId, topicId, mode, questionCount) {
-  const questions = await loadQuestionsFromAPI(categoryId, topicId);
-  if (!questions || questions.length === 0) throw new Error('No hay preguntas disponibles para esta selección.');
+async function initExam(examDefinitionId, mode, questionCount) {
+  const questions = await loadExamQuestions(examDefinitionId);
+  if (!questions || questions.length === 0) throw new Error('No hay preguntas disponibles para este examen.');
 
   const count = questionCount && questionCount < questions.length ? questionCount : questions.length;
   const selected = shuffle(questions).slice(0, count);
 
-  const exam = await apiPost('/api/exams', { category_id: categoryId });
+  const session = await apiPost('/api/exam-sessions', {
+    exam_definition_id: examDefinitionId,
+    mode,
+    question_count: count,
+  });
 
   examState = {
-    examId: exam.id,
-    categoryId,
-    topicId,
+    sessionId: session.id,
+    examDefinitionId,
     mode,
     allQuestions: selected,
     mastered: new Set(),
@@ -37,10 +36,14 @@ async function initExam(categoryId, topicId, mode, questionCount) {
   return examState;
 }
 
-async function loadQuestionsFromAPI(categoryId, topicId) {
-  let path = '/api/questions?category_id=' + categoryId;
-  if (topicId) path += '&topic_id=' + topicId;
-  return await apiGet(path);
+async function loadExamQuestions(examDefinitionId) {
+  const topics = await apiGet(`/api/exam-definitions/${examDefinitionId}/topics`);
+  let all = [];
+  for (const topic of topics) {
+    const questions = await apiGet(`/api/exam-topics/${topic.id}/questions`);
+    all = all.concat(questions);
+  }
+  return all;
 }
 
 function loadExamState() {
@@ -74,23 +77,23 @@ function getCurrentQuestion() {
   if (examState.cycleIndex >= cycle.length) return null;
   const q = cycle[examState.cycleIndex];
   if (!q) return null;
-  const shuffledAnswers = shuffle(q.answers || []);
-  currentQuestionData = { ...q, answers: shuffledAnswers };
+  const shuffledOptions = shuffle(q.options || []);
+  currentQuestionData = { ...q, options: shuffledOptions };
   return currentQuestionData;
 }
 
-async function submitAnswer(selectedAnswerIds) {
+async function submitAnswer(selectedOptionIds) {
   if (!examState || examState.completed) return null;
   const q = examState.currentCycle[examState.cycleIndex];
   if (!q) return null;
 
-  const correctIds = (q.answers || []).filter(a => a.is_correct).map(a => a.id);
-  const isCorrect = arraysEqual(selectedAnswerIds.sort(), correctIds.sort());
+  const correctIds = (q.options || []).filter(o => o.is_correct).map(o => o.id);
+  const isCorrect = arraysEqual(selectedOptionIds.sort(), correctIds.sort());
 
-  await apiPost('/api/exam-answers', {
-    exam_id: examState.examId,
-    question_id: q.id,
-    selected_answer_ids: selectedAnswerIds,
+  await apiPost('/api/session-answers', {
+    session_id: examState.sessionId,
+    exam_question_id: q.id,
+    selected_option_ids: selectedOptionIds,
     is_correct: isCorrect,
     cycle_number: examState.cycleNumber,
   });
@@ -122,7 +125,7 @@ async function finishExam() {
   examState.elapsedSeconds = Math.floor((Date.now() - examState.startTime) / 1000);
   const percentage = examState.totalQuestions > 0 ? Math.round((examState.score / examState.totalQuestions) * 100) : 0;
 
-  await apiPut('/api/exams/' + examState.examId, {
+  await apiPut('/api/exam-sessions/' + examState.sessionId, {
     status: 'completed',
     correct_answers: examState.score,
     score: percentage,
@@ -139,7 +142,7 @@ async function finishExam() {
     total: examState.totalQuestions,
     time: examState.elapsedSeconds,
     mode: examState.mode,
-    examId: examState.examId,
+    sessionId: examState.sessionId,
   };
 }
 
@@ -163,5 +166,5 @@ function arraysEqual(a, b) {
 }
 
 function isMultipleCorrect(question) {
-  return (question.answers || []).filter(a => a.is_correct).length > 1;
+  return (question.options || []).filter(o => o.is_correct).length > 1;
 }

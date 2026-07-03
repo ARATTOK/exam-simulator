@@ -30,28 +30,17 @@
     <div class="container">
       <div style="padding:32px 0 16px;">
         <h1 style="font-size:1.75rem;font-weight:800;">Mis exámenes</h1>
-        <p class="text-muted">Selecciona una categoría y comienza a practicar.</p>
+        <p class="text-muted">Selecciona un examen y comienza a practicar.</p>
       </div>
 
       <div class="dashboard-grid">
         <div>
           <div class="card" style="margin-bottom:24px;">
             <div class="card-header">
-              <span class="card-title">📂 Categorías</span>
+              <span class="card-title">📋 Exámenes disponibles</span>
             </div>
-            <div id="categoriesList">
-              <div class="text-muted text-sm" style="padding:12px;">No hay categorías disponibles.</div>
-            </div>
-          </div>
-
-          <div id="topicsSection" class="hidden">
-            <div class="card" style="margin-bottom:24px;">
-              <div class="card-header">
-                <span class="card-title">🏷️ Temas</span>
-              </div>
-              <div id="topicsList">
-                <button class="topic-tag selected" data-id="" onclick="selectTopic('')">Todos</button>
-              </div>
+            <div id="examsList">
+              <div class="text-muted text-sm" style="padding:12px;">No hay exámenes disponibles.</div>
             </div>
           </div>
         </div>
@@ -59,15 +48,16 @@
         <div>
           <div class="card" style="margin-bottom:24px;">
             <div class="card-header">
-              <span class="card-title">⚙️ Configurar examen</span>
+              <span class="card-title">⚙️ Configurar sesión</span>
             </div>
 
             <div id="examConfig">
-              <div class="text-muted text-sm" style="padding:12px;">Selecciona una categoría para configurar.</div>
+              <div class="text-muted text-sm" style="padding:12px;">Selecciona un examen para configurar.</div>
             </div>
 
             <div id="examConfigReady" class="hidden">
-              <p class="text-muted text-sm mb-2">Categoría: <strong id="configCategoryName">—</strong></p>
+              <p class="text-muted text-sm mb-2">Examen: <strong id="configExamName">—</strong></p>
+              <p class="text-muted text-sm mb-4" id="configExamMeta">—</p>
 
               <label class="form-label">Modo de examen</label>
               <div class="mode-selector">
@@ -114,22 +104,20 @@
   <script src="js/auth.js"></script>
   <script src="js/exam.js"></script>
   <script>
-    let selectedCategoryId = null;
-    let selectedTopicId = null;
+    let selectedExamId = null;
     let selectedMode = 'practice';
-    let categories = [];
-    let topics = [];
-    let categoryQuestionsCount = 0;
+    let exams = [];
+    let examQuestionCount = 0;
 
     async function loadDashboard() {
       toggleLoading(true);
       try {
-        const cats = await apiGet('/api/dashboard/categories');
-        categories = cats || [];
-        renderCategories();
+        const ex = await apiGet('/api/dashboard/exams');
+        exams = ex || [];
+        renderExams();
 
-        const exams = await apiGet('/api/dashboard/history');
-        renderHistory(exams || []);
+        const history = await apiGet('/api/dashboard/history');
+        renderHistory(history || []);
       } catch (err) {
         console.error(err);
         toastError('Error al cargar datos: ' + err.message);
@@ -139,58 +127,46 @@
       }
     }
 
-    function renderCategories() {
-      const container = $('#categoriesList');
-      if (!categories.length) {
-        container.innerHTML = '<div class="text-muted text-sm" style="padding:12px;">No hay categorías disponibles. Contacta al administrador.</div>';
+    function renderExams() {
+      const container = $('#examsList');
+      if (!exams.length) {
+        container.innerHTML = '<div class="text-muted text-sm" style="padding:12px;">No hay exámenes disponibles. Contacta al administrador.</div>';
         return;
       }
-      container.innerHTML = categories.map(c => `
-        <div class="category-card ${c.id === selectedCategoryId ? 'selected' : ''}" onclick="selectCategory('${c.id}')">
-          <h3>${esc(c.name)}</h3>
-          <p>${esc(c.description || 'Sin descripción')}</p>
-          <div class="topic-count">${c.question_count || 0} preguntas</div>
+      container.innerHTML = exams.map(e => `
+        <div class="category-card ${e.id === selectedExamId ? 'selected' : ''}" onclick="selectExam('${e.id}')">
+          <h3>${esc(e.name)}</h3>
+          <p>${esc(e.description || e.category_name || 'Sin descripción')}</p>
+          <div class="topic-count">
+            ${e.category_name ? '📂 ' + esc(e.category_name) + ' · ' : ''}
+            ${e.topic_count || 0} temas · ${e.question_count || 0} preguntas
+            ${e.suggested_minutes ? '· ⏱ ' + e.suggested_minutes + 'min' : ''}
+          </div>
         </div>
       `).join('');
     }
 
-    async function selectCategory(categoryId) {
-      selectedCategoryId = categoryId;
-      renderCategories();
+    function selectExam(examId) {
+      selectedExamId = examId;
+      renderExams();
 
-      const ts = await apiGet('/api/topics?category_id=' + categoryId);
-      topics = ts || [];
-      selectedTopicId = null;
+      const exam = exams.find(e => e.id === examId);
+      if (!exam) return;
 
-      const cat = categories.find(c => c.id === categoryId);
-      categoryQuestionsCount = cat?.question_count || 0;
+      examQuestionCount = exam.question_count || 0;
 
-      if (topics.length > 0) {
-        show('#topicsSection');
-        renderTopics();
-      } else {
-        hide('#topicsSection');
-      }
+      $('#configExamName').textContent = exam.name;
+      let meta = exam.question_count + ' preguntas disponibles';
+      if (exam.topic_count) meta += ' · ' + exam.topic_count + ' temas';
+      if (exam.suggested_minutes) meta += ' · ⏱ ' + exam.suggested_minutes + ' min sugeridos';
+      if (exam.passing_score) meta += ' · 🎯 Nota de corte: ' + exam.passing_score + '%';
+      $('#configExamMeta').textContent = meta;
 
-      $('#configCategoryName').textContent = cat ? cat.name : '';
-      $('#maxQuestionsHint').textContent = 'Máximo: ' + categoryQuestionsCount;
-      $('#questionCount').value = Math.min(10, categoryQuestionsCount || 1);
+      $('#maxQuestionsHint').textContent = 'Máximo: ' + examQuestionCount;
+      $('#questionCount').value = Math.min(10, examQuestionCount || 1);
 
       show('#examConfigReady');
       hide('#examConfig');
-    }
-
-    function renderTopics() {
-      const container = $('#topicsList');
-      container.innerHTML = `
-        <button class="topic-tag ${!selectedTopicId ? 'selected' : ''}" onclick="selectTopic('')">Todos</button>
-        ${topics.map(t => `<button class="topic-tag ${t.id === selectedTopicId ? 'selected' : ''}" onclick="selectTopic('${t.id}')">${esc(t.name)}</button>`).join('')}
-      `;
-    }
-
-    function selectTopic(topicId) {
-      selectedTopicId = topicId;
-      renderTopics();
     }
 
     function selectMode(mode) {
@@ -199,12 +175,12 @@
     }
 
     async function startExam() {
-      if (!selectedCategoryId) return toastError('Selecciona una categoría');
-      const count = parseInt($('#questionCount').value) || categoryQuestionsCount;
-      if (count < 1 || count > categoryQuestionsCount) return toastError('Elige entre 1 y ' + categoryQuestionsCount + ' preguntas.');
+      if (!selectedExamId) return toastError('Selecciona un examen');
+      const count = parseInt($('#questionCount').value) || examQuestionCount;
+      if (count < 1 || count > examQuestionCount) return toastError('Elige entre 1 y ' + examQuestionCount + ' preguntas.');
 
       try {
-        await initExam(selectedCategoryId, selectedTopicId, selectedMode, count);
+        await initExam(selectedExamId, selectedMode, count);
         window.location.href = 'exam.html';
       } catch (err) {
         toastError('Error: ' + err.message);
@@ -222,8 +198,8 @@
         const date = e.completed_at ? new Date(e.completed_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '—';
         return `<div class="history-item">
           <div>
-            <div style="font-weight:600;font-size:0.9rem;">${esc(e.category_name || '—')}</div>
-            <div class="text-muted" style="font-size:0.78rem;">${date} · ${e.correct_answers}/${e.total_questions} aciertos</div>
+            <div style="font-weight:600;font-size:0.9rem;">${esc(e.exam_name || '—')}</div>
+            <div class="text-muted" style="font-size:0.78rem;">${date} · ${e.correct_answers}/${e.total_questions} aciertos · ${esc(e.category_name || '')}</div>
           </div>
           <div class="history-score ${cls}">${e.score}%</div>
         </div>`;

@@ -16,7 +16,7 @@
       <div class="nav-links">
         <button class="nav-link" id="themeToggle" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
         <span class="nav-link user-info" id="userDisplay">👤 usuario</span>
-        <button class="nav-link logout" onclick="confirmExit()">Salir del examen</button>
+        <button class="nav-link logout" onclick="confirmExit()">Salir</button>
       </div>
     </div>
   </nav>
@@ -42,11 +42,11 @@
         <div class="question-number" id="questionNumber">Pregunta 1</div>
         <div class="question-text" id="questionText">Cargando pregunta...</div>
         <div id="questionImageContainer"></div>
-        <div id="answersContainer" class="mt-4"></div>
+        <div id="optionsContainer" class="mt-4"></div>
         <div id="feedbackContainer" class="mt-4"></div>
         <div class="exam-actions" id="examActions">
           <button class="btn btn-primary" id="submitBtn" onclick="handleSubmit()">Enviar respuesta</button>
-          <button class="btn btn-secondary hidden" id="nextBtn" onclick="nextQuestion()">Siguiente pregunta →</button>
+          <button class="btn btn-secondary hidden" id="nextBtn" onclick="nextQuestion()">Siguiente →</button>
           <button class="btn btn-success hidden" id="finishBtn" onclick="handleFinish()">Ver resultados 🎉</button>
         </div>
       </div>
@@ -70,7 +70,7 @@
   <script src="js/exam.js"></script>
   <script>
     let awaitingNext = false;
-    let submittedAnswerIds = [];
+    let submittedOptionIds = [];
 
     async function initExamPage() {
       toggleLoading(true);
@@ -93,13 +93,13 @@
       const q = getCurrentQuestion();
       if (!q) {
         $('#questionText').textContent = 'Preparando siguiente ronda...';
-        hide('#answersContainer');
+        hide('#optionsContainer');
         hide('#submitBtn');
         show('#nextBtn');
         return;
       }
       awaitingNext = false;
-      submittedAnswerIds = [];
+      submittedOptionIds = [];
 
       const totalInCycle = examState.currentCycle.length;
       const qNum = examState.cycleIndex + 1;
@@ -107,18 +107,20 @@
 
       const isMulti = isMultipleCorrect(q);
       const inputType = isMulti ? 'checkbox' : 'radio';
-      const groupName = 'answer_' + q.id;
+      const groupName = 'option_' + q.id;
 
       $('#questionText').textContent = q.text;
 
       const imgContainer = $('#questionImageContainer');
-      imgContainer.innerHTML = q.image_url ? `<img class="question-image" src="${esc(q.image_url)}" alt="Imagen de la pregunta">` : '';
+      imgContainer.innerHTML = q.image_url
+        ? `<img class="question-image" src="${esc(q.image_url)}" alt="Imagen de la pregunta" loading="lazy">`
+        : '';
 
-      const container = $('#answersContainer');
-      container.innerHTML = q.answers.map(a => `
-        <label class="radio-label" onclick="onAnswerClick(this, '${inputType}')">
-          <input type="${inputType}" name="${groupName}" value="${a.id}" onchange="updateSubmitBtn()">
-          <span>${esc(a.text)}</span>
+      const container = $('#optionsContainer');
+      container.innerHTML = q.options.map(o => `
+        <label class="radio-label" onclick="onOptionClick(this, '${inputType}')">
+          <input type="${inputType}" name="${groupName}" value="${o.id}" onchange="updateSubmitBtn()">
+          <span>${esc(o.text)}</span>
         </label>
       `).join('');
 
@@ -128,11 +130,11 @@
       updateProgress();
     }
 
-    function onAnswerClick(labelEl, type) {
+    function onOptionClick(labelEl, type) {
       if (awaitingNext) return;
       const input = labelEl.querySelector('input');
       if (type === 'radio') {
-        labelEl.closest('#answersContainer').querySelectorAll('.radio-label').forEach(l => l.classList.remove('selected'));
+        labelEl.closest('#optionsContainer').querySelectorAll('.radio-label').forEach(l => l.classList.remove('selected'));
         labelEl.classList.add('selected');
         input.checked = true;
       } else {
@@ -143,26 +145,26 @@
     }
 
     function updateSubmitBtn() {
-      $('#submitBtn').disabled = $$('#answersContainer input:checked').length === 0;
+      $('#submitBtn').disabled = $$('#optionsContainer input:checked').length === 0;
     }
 
     async function handleSubmit() {
       if (awaitingNext) return;
-      const checked = $$('#answersContainer input:checked');
+      const checked = $$('#optionsContainer input:checked');
       if (checked.length === 0) return;
-      submittedAnswerIds = checked.map(c => c.value);
+      submittedOptionIds = checked.map(c => c.value);
 
-      $$('#answersContainer input').forEach(i => i.disabled = true);
+      $$('#optionsContainer input').forEach(i => i.disabled = true);
 
       const q = examState.currentCycle[examState.cycleIndex];
-      const correctIds = (q.answers || []).filter(a => a.is_correct).map(a => a.id);
-      const isCorrect = arraysEqual(submittedAnswerIds.sort(), correctIds.sort());
+      const correctIds = (q.options || []).filter(o => o.is_correct).map(o => o.id);
+      const isCorrect = arraysEqual(submittedOptionIds.sort(), correctIds.sort());
 
-      $$('#answersContainer .radio-label').forEach(label => {
+      $$('#optionsContainer .radio-label').forEach(label => {
         const input = label.querySelector('input');
-        const isAnsCorrect = correctIds.includes(input.value);
-        if (input.checked) label.classList.add(isAnsCorrect ? 'correct' : 'incorrect');
-        else if (isAnsCorrect) label.classList.add('correct');
+        const isOptCorrect = correctIds.includes(input.value);
+        if (input.checked) label.classList.add(isOptCorrect ? 'correct' : 'incorrect');
+        else if (isOptCorrect) label.classList.add('correct');
       });
 
       if (examState.mode === 'practice') {
@@ -170,7 +172,7 @@
         if (isCorrect) {
           fb.innerHTML = `<div class="feedback-box correct">✅ ¡Correcto!${q.explanation ? `<div class="explanation">${esc(q.explanation)}</div>` : ''}</div>`;
         } else {
-          const correctText = q.answers.filter(a => a.is_correct).map(a => a.text).join(', ');
+          const correctText = q.options.filter(o => o.is_correct).map(o => o.text).join(', ');
           fb.innerHTML = `<div class="feedback-box incorrect">❌ Incorrecto.${q.explanation ? `<div class="explanation">${esc(q.explanation)}</div>` : `<div class="explanation">Respuesta correcta: <strong>${esc(correctText)}</strong></div>`}</div>`;
         }
         show(fb);
@@ -178,12 +180,13 @@
 
       awaitingNext = true;
       hide('#submitBtn');
-      const result = await submitAnswer(submittedAnswerIds);
+      const result = await submitAnswer(submittedOptionIds);
 
       if (result && result.done) {
         $('#examActions').innerHTML = '';
         show('#finishBtn');
         $('#finishBtn').textContent = `🎉 Ver resultados (${result.score}%)`;
+        stopTimer();
         return;
       }
 
@@ -217,6 +220,17 @@
     function confirmExit() { hide('#questionCard'); show('#exitConfirm'); }
 
     function exitExam() { clearExamState(); stopTimer(); window.location.href = 'dashboard.html'; }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.key >= '1' && e.key <= '9') {
+        const idx = parseInt(e.key) - 1;
+        const labels = $$('#optionsContainer .radio-label');
+        if (labels[idx]) labels[idx].click();
+      }
+      if (e.key === 'Enter' && !$('#submitBtn').disabled) handleSubmit();
+      if (e.key === 'ArrowRight' || e.key === 'n') { if (!$('#nextBtn').classList.contains('hidden')) nextQuestion(); }
+    });
 
     checkSession().then(session => {
       if (!session) { window.location.href = 'index.html'; return; }

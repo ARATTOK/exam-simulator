@@ -11,18 +11,13 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'simuexam-jwt-secret-2026';
-const ADMIN_SECRET = process.env.ADMIN_SECRET || 'simu-admin-2026';
 
-// Neon connection string from env or direct
 const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_cDGFftZ4yAo5@ep-polished-recipe-ahvqwihl.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require';
 
 const pool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
-// Middleware
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
-
-// Serve uploaded images
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Auth middleware
@@ -51,43 +46,6 @@ function requireAdmin(req, res, next) {
 // ==========================================
 // AUTH
 // ==========================================
-
-app.post('/api/auth/register', async (req, res) => {
-  try {
-    const { email, password, displayName, role, secret } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'Email y contraseña requeridos' });
-
-    let userRole = 'user';
-    if (role === 'admin') {
-      if (secret !== ADMIN_SECRET) return res.status(403).json({ error: 'Código secreto incorrecto' });
-      userRole = 'admin';
-    }
-
-    const existCheck = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-    if (existCheck.rows.length > 0) {
-      return res.status(409).json({ error: 'Esta cuenta ya existe. Inicia sesión.' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const id = uuidv4();
-
-    await pool.query(
-      'INSERT INTO users (id, email, password, display_name, role) VALUES ($1, $2, $3, $4, $5)',
-      [id, email, hashedPassword, displayName || email, userRole]
-    );
-
-    await pool.query(
-      'INSERT INTO profiles (id, role, display_name) VALUES ($1, $2, $3)',
-      [id, userRole, displayName || email]
-    );
-
-    const token = jwt.sign({ id, email, role: userRole, displayName }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id, email, role: userRole, display_name: displayName || email } });
-  } catch (err) {
-    console.error('Register error:', err);
-    res.status(500).json({ error: 'Error al registrar: ' + err.message });
-  }
-});
 
 app.post('/api/auth/login', async (req, res) => {
   try {
@@ -128,15 +86,13 @@ app.get('/api/auth/me', authenticate, async (req, res) => {
 });
 
 // ==========================================
-// CATEGORIES
+// CATEGORIES (shared)
 // ==========================================
 
 app.get('/api/categories', authenticate, async (req, res) => {
   const result = await pool.query(`
-    SELECT c.*, COUNT(DISTINCT t.id)::int as topic_count
+    SELECT c.*, (SELECT COUNT(*) FROM exam_definitions ed WHERE ed.category_id = c.id)::int as exam_count
     FROM categories c
-    LEFT JOIN topics t ON t.category_id = c.id
-    GROUP BY c.id
     ORDER BY c.name
   `);
   res.json(result.rows);
@@ -167,134 +123,144 @@ app.delete('/api/categories/:id', authenticate, requireAdmin, async (req, res) =
 });
 
 // ==========================================
-// TOPICS
+// EXAM DEFINITIONS
 // ==========================================
 
-app.get('/api/topics', authenticate, async (req, res) => {
-  const { category_id } = req.query;
-  let q = 'SELECT t.*, (SELECT COUNT(*) FROM questions q WHERE q.topic_id = t.id)::int as question_count FROM topics t';
-  const params = [];
-  if (category_id) {
-    q += ' WHERE t.category_id = $1';
-    params.push(category_id);
-  }
-  q += ' ORDER BY t.name';
-  const result = await pool.query(q, params);
+app.get('/api/exam-definitions', authenticate, async (req, res) => {
+  const result = await pool.query(`
+    SELECT ed.*, c.name as category_name,
+      (SELECT COUNT(*) FROM exam_topics et WHERE et.exam_definition_id = ed.id)::int as topic_count,
+      (SELECT COUNT(*) FROM exam_questions eq
+        JOIN exam_topics et2 ON et2.id = eq.exam_topic_id
+        WHERE et2.exam_definition_id = ed.id)::int as question_count
+    FROM exam_definitions ed
+    LEFT JOIN categories c ON c.id = ed.category_id
+    ORDER BY ed.name
+  `);
   res.json(result.rows);
 });
 
-app.post('/api/topics', authenticate, requireAdmin, async (req, res) => {
-  const { name, category_id } = req.body;
-  if (!name || !category_id) return res.status(400).json({ error: 'Nombre y categoría requeridos' });
+app.post('/api/exam-definitions', authenticate, requireAdmin, async (req, res) => {
+  const { name, description, category_id, passing_score, suggested_minutes, official_url } = req.body;
+  if (!name) return res.status(400).json({ error: 'Nombre requerido' });
   const result = await pool.query(
-    'INSERT INTO topics (name, category_id) VALUES ($1, $2) RETURNING *',
-    [name, category_id]
+    `INSERT INTO exam_definitions (name, description, category_id, passing_score, suggested_minutes, official_url)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [name, description || '', category_id || null, passing_score || 70, suggested_minutes || 0, official_url || null]
   );
   res.json(result.rows[0]);
 });
 
-app.put('/api/topics/:id', authenticate, requireAdmin, async (req, res) => {
-  const { name } = req.body;
-  const result = await pool.query('UPDATE topics SET name = $1 WHERE id = $2 RETURNING *', [name, req.params.id]);
+app.put('/api/exam-definitions/:id', authenticate, requireAdmin, async (req, res) => {
+  const { name, description, category_id, passing_score, suggested_minutes, official_url } = req.body;
+  const result = await pool.query(
+    `UPDATE exam_definitions SET name = $1, description = $2, category_id = $3,
+     passing_score = $4, suggested_minutes = $5, official_url = $6, updated_at = now()
+     WHERE id = $7 RETURNING *`,
+    [name, description || '', category_id || null, passing_score || 70, suggested_minutes || 0, official_url || null, req.params.id]
+  );
   res.json(result.rows[0]);
 });
 
-app.delete('/api/topics/:id', authenticate, requireAdmin, async (req, res) => {
-  await pool.query('DELETE FROM topics WHERE id = $1', [req.params.id]);
+app.delete('/api/exam-definitions/:id', authenticate, requireAdmin, async (req, res) => {
+  await pool.query('DELETE FROM exam_definitions WHERE id = $1', [req.params.id]);
   res.json({ success: true });
 });
 
 // ==========================================
-// QUESTIONS
+// EXAM TOPICS
 // ==========================================
 
-app.get('/api/questions', authenticate, async (req, res) => {
-  const { category_id, topic_id } = req.query;
-  let q = 'SELECT q.*, t.name as topic_name FROM questions q LEFT JOIN topics t ON t.id = q.topic_id';
-  const params = [];
-  const conds = [];
-  if (category_id) { params.push(category_id); conds.push(`q.category_id = $${params.length}`); }
-  if (topic_id) { params.push(topic_id); conds.push(`q.topic_id = $${params.length}`); }
-  if (conds.length) q += ' WHERE ' + conds.join(' AND ');
-  q += ' ORDER BY q.created_at DESC';
+app.get('/api/exam-definitions/:id/topics', authenticate, async (req, res) => {
+  const result = await pool.query(`
+    SELECT et.*,
+      (SELECT COUNT(*) FROM exam_questions eq WHERE eq.exam_topic_id = et.id)::int as question_count
+    FROM exam_topics et
+    WHERE et.exam_definition_id = $1
+    ORDER BY et.name
+  `, [req.params.id]);
+  res.json(result.rows);
+});
 
-  const questions = await pool.query(q, params);
+app.post('/api/exam-topics', authenticate, requireAdmin, async (req, res) => {
+  const { name, exam_definition_id } = req.body;
+  if (!name || !exam_definition_id) return res.status(400).json({ error: 'Nombre y examen requeridos' });
+  const result = await pool.query(
+    'INSERT INTO exam_topics (name, exam_definition_id) VALUES ($1, $2) RETURNING *',
+    [name, exam_definition_id]
+  );
+  res.json(result.rows[0]);
+});
 
-  // Fetch answers for each question
-  for (const question of questions.rows) {
-    const answers = await pool.query('SELECT * FROM answers WHERE question_id = $1 ORDER BY created_at', [question.id]);
-    question.answers = answers.rows;
+app.put('/api/exam-topics/:id', authenticate, requireAdmin, async (req, res) => {
+  const { name } = req.body;
+  const result = await pool.query(
+    'UPDATE exam_topics SET name = $1 WHERE id = $2 RETURNING *',
+    [name, req.params.id]
+  );
+  res.json(result.rows[0]);
+});
+
+app.delete('/api/exam-topics/:id', authenticate, requireAdmin, async (req, res) => {
+  await pool.query('DELETE FROM exam_topics WHERE id = $1', [req.params.id]);
+  res.json({ success: true });
+});
+
+// ==========================================
+// EXAM QUESTIONS
+// ==========================================
+
+app.get('/api/exam-topics/:id/questions', authenticate, async (req, res) => {
+  const questions = await pool.query(
+    'SELECT * FROM exam_questions WHERE exam_topic_id = $1 ORDER BY created_at',
+    [req.params.id]
+  );
+  for (const q of questions.rows) {
+    const opts = await pool.query(
+      'SELECT * FROM exam_question_options WHERE exam_question_id = $1 ORDER BY created_at',
+      [q.id]
+    );
+    q.options = opts.rows;
   }
-
   res.json(questions.rows);
 });
 
-app.post('/api/questions', authenticate, requireAdmin, async (req, res) => {
-  const { category_id, topic_id, text, image_url, explanation } = req.body;
-  if (!text || !category_id) return res.status(400).json({ error: 'Texto y categoría requeridos' });
+app.post('/api/exam-questions', authenticate, requireAdmin, async (req, res) => {
+  const { exam_topic_id, text, image_url, explanation } = req.body;
+  if (!text || !exam_topic_id) return res.status(400).json({ error: 'Texto y tema requeridos' });
   const result = await pool.query(
-    'INSERT INTO questions (category_id, topic_id, text, image_url, explanation) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-    [category_id, topic_id || null, text, image_url || null, explanation || null]
+    'INSERT INTO exam_questions (exam_topic_id, text, image_url, explanation) VALUES ($1, $2, $3, $4) RETURNING *',
+    [exam_topic_id, text, image_url || null, explanation || null]
   );
   res.json(result.rows[0]);
 });
 
-app.put('/api/questions/:id', authenticate, requireAdmin, async (req, res) => {
-  const { topic_id, text, image_url, explanation } = req.body;
+app.put('/api/exam-questions/:id', authenticate, requireAdmin, async (req, res) => {
+  const { text, image_url, explanation } = req.body;
   const result = await pool.query(
-    'UPDATE questions SET topic_id = $1, text = $2, image_url = $3, explanation = $4 WHERE id = $5 RETURNING *',
-    [topic_id || null, text, image_url || null, explanation || null, req.params.id]
+    'UPDATE exam_questions SET text = $1, image_url = $2, explanation = $3 WHERE id = $4 RETURNING *',
+    [text, image_url || null, explanation || null, req.params.id]
   );
   res.json(result.rows[0]);
 });
 
-app.delete('/api/questions/:id', authenticate, requireAdmin, async (req, res) => {
-  await pool.query('DELETE FROM questions WHERE id = $1', [req.params.id]);
+app.delete('/api/exam-questions/:id', authenticate, requireAdmin, async (req, res) => {
+  await pool.query('DELETE FROM exam_questions WHERE id = $1', [req.params.id]);
   res.json({ success: true });
 });
 
-// ==========================================
-// ANSWERS
-// ==========================================
-
-app.post('/api/answers', authenticate, requireAdmin, async (req, res) => {
-  const { question_id, text, is_correct } = req.body;
-  if (!question_id || !text) return res.status(400).json({ error: 'Datos incompletos' });
-  const result = await pool.query(
-    'INSERT INTO answers (question_id, text, is_correct) VALUES ($1, $2, $3) RETURNING *',
-    [question_id, text, is_correct || false]
-  );
-  res.json(result.rows[0]);
-});
-
-app.put('/api/answers/:id', authenticate, requireAdmin, async (req, res) => {
-  const { text, is_correct } = req.body;
-  const result = await pool.query(
-    'UPDATE answers SET text = $1, is_correct = $2 WHERE id = $3 RETURNING *',
-    [text, is_correct || false, req.params.id]
-  );
-  res.json(result.rows[0]);
-});
-
-app.delete('/api/answers/:id', authenticate, requireAdmin, async (req, res) => {
-  await pool.query('DELETE FROM answers WHERE id = $1', [req.params.id]);
-  res.json({ success: true });
-});
-
-// Batch save answers (for question save with all answers)
-app.put('/api/questions/:id/answers', authenticate, requireAdmin, async (req, res) => {
-  const { answers } = req.body;
+// Batch save options for a question
+app.put('/api/exam-questions/:id/options', authenticate, requireAdmin, async (req, res) => {
+  const { options } = req.body;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    // Delete existing
-    await client.query('DELETE FROM answers WHERE question_id = $1', [req.params.id]);
-
-    for (const a of answers) {
-      if (!a.text) continue;
+    await client.query('DELETE FROM exam_question_options WHERE exam_question_id = $1', [req.params.id]);
+    for (const o of options) {
+      if (!o.text) continue;
       await client.query(
-        'INSERT INTO answers (question_id, text, is_correct) VALUES ($1, $2, $3)',
-        [req.params.id, a.text, a.is_correct || false]
+        'INSERT INTO exam_question_options (exam_question_id, text, is_correct) VALUES ($1, $2, $3)',
+        [req.params.id, o.text, o.is_correct || false]
       );
     }
     await client.query('COMMIT');
@@ -308,7 +274,158 @@ app.put('/api/questions/:id/answers', authenticate, requireAdmin, async (req, re
 });
 
 // ==========================================
-// UPLOAD (images)
+// IMPORT questions into an exam definition
+// ==========================================
+
+app.post('/api/exam-definitions/:id/import', authenticate, requireAdmin, async (req, res) => {
+  const { items } = req.body;
+  const examDefId = req.params.id;
+  if (!items || !Array.isArray(items)) return res.status(400).json({ error: 'Se requiere un array de preguntas' });
+
+  let imported = 0;
+  for (const item of items) {
+    const topicName = item.topic || item.tema;
+    if (!topicName) continue;
+
+    let topic = await pool.query(
+      'SELECT id FROM exam_topics WHERE exam_definition_id = $1 AND LOWER(name) = LOWER($2)',
+      [examDefId, topicName]
+    );
+    let topicId;
+    if (topic.rows.length === 0) {
+      const newTopic = await pool.query(
+        'INSERT INTO exam_topics (name, exam_definition_id) VALUES ($1, $2) RETURNING id',
+        [topicName, examDefId]
+      );
+      topicId = newTopic.rows[0].id;
+    } else {
+      topicId = topic.rows[0].id;
+    }
+
+    const questionText = item.question || item.pregunta || item.text;
+    if (!questionText) continue;
+
+    const explanation = item.explanation || item.explicacion || '';
+    const imageUrl = item.image || item.imagen || '';
+
+    const q = await pool.query(
+      'INSERT INTO exam_questions (exam_topic_id, text, image_url, explanation) VALUES ($1, $2, $3, $4) RETURNING id',
+      [topicId, questionText, imageUrl, explanation]
+    );
+    const questionId = q.rows[0].id;
+
+    const options = [];
+    for (let i = 1; i <= 10; i++) {
+      const optText = item['answer' + i] || item['option' + i] || item['respuesta' + i] || '';
+      if (!optText) continue;
+      const isCorrect = item['correct' + i] === 'true' || item['correct' + i] === 'yes' ||
+        item['correct' + i] === '1' || item['correct' + i] === true ||
+        item['correcta' + i] === 'true';
+      options.push({ text: optText, is_correct: isCorrect });
+    }
+
+    if (options.length > 0) {
+      for (const o of options) {
+        await pool.query(
+          'INSERT INTO exam_question_options (exam_question_id, text, is_correct) VALUES ($1, $2, $3)',
+          [questionId, o.text, o.is_correct]
+        );
+      }
+    }
+    imported++;
+  }
+  res.json({ imported });
+});
+
+// ==========================================
+// EXAM SESSIONS (user attempts)
+// ==========================================
+
+app.post('/api/exam-sessions', authenticate, async (req, res) => {
+  const { exam_definition_id, mode, question_count } = req.body;
+  if (!exam_definition_id) return res.status(400).json({ error: 'Examen requerido' });
+
+  const result = await pool.query(
+    `INSERT INTO exam_sessions (user_id, exam_definition_id, mode, status, total_questions)
+     VALUES ($1, $2, $3, 'in_progress', $4) RETURNING *`,
+    [req.user.id, exam_definition_id, mode || 'practice', question_count || 0]
+  );
+  res.json(result.rows[0]);
+});
+
+app.put('/api/exam-sessions/:id', authenticate, async (req, res) => {
+  const { status, correct_answers, score, completed_at } = req.body;
+  const result = await pool.query(
+    `UPDATE exam_sessions SET status = COALESCE($1, status),
+     correct_answers = COALESCE($2, correct_answers),
+     score = COALESCE($3, score),
+     completed_at = COALESCE($4, completed_at)
+     WHERE id = $5 AND user_id = $6 RETURNING *`,
+    [status, correct_answers, score, completed_at, req.params.id, req.user.id]
+  );
+  res.json(result.rows[0]);
+});
+
+app.get('/api/exam-sessions/last', authenticate, async (req, res) => {
+  const result = await pool.query(`
+    SELECT es.*, ed.name as exam_name, ed.category_id, c.name as category_name
+    FROM exam_sessions es
+    JOIN exam_definitions ed ON ed.id = es.exam_definition_id
+    LEFT JOIN categories c ON c.id = ed.category_id
+    WHERE es.user_id = $1 AND es.status = 'completed'
+    ORDER BY es.completed_at DESC
+    LIMIT 1
+  `, [req.user.id]);
+  res.json(result.rows[0] || null);
+});
+
+// ==========================================
+// SESSION ANSWERS
+// ==========================================
+
+app.post('/api/session-answers', authenticate, async (req, res) => {
+  const { session_id, exam_question_id, selected_option_ids, is_correct, cycle_number } = req.body;
+  const result = await pool.query(
+    `INSERT INTO session_answers (session_id, exam_question_id, selected_option_ids, is_correct, cycle_number)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [session_id, exam_question_id, JSON.stringify(selected_option_ids), is_correct, cycle_number || 1]
+  );
+  res.json(result.rows[0]);
+});
+
+// ==========================================
+// DASHBOARD
+// ==========================================
+
+app.get('/api/dashboard/exams', authenticate, async (req, res) => {
+  const result = await pool.query(`
+    SELECT ed.*, c.name as category_name,
+      (SELECT COUNT(*) FROM exam_questions eq
+        JOIN exam_topics et2 ON et2.id = eq.exam_topic_id
+        WHERE et2.exam_definition_id = ed.id)::int as question_count,
+      (SELECT COUNT(*) FROM exam_topics et WHERE et.exam_definition_id = ed.id)::int as topic_count
+    FROM exam_definitions ed
+    LEFT JOIN categories c ON c.id = ed.category_id
+    ORDER BY ed.name
+  `);
+  res.json(result.rows);
+});
+
+app.get('/api/dashboard/history', authenticate, async (req, res) => {
+  const result = await pool.query(`
+    SELECT es.*, ed.name as exam_name, c.name as category_name
+    FROM exam_sessions es
+    JOIN exam_definitions ed ON ed.id = es.exam_definition_id
+    LEFT JOIN categories c ON c.id = ed.category_id
+    WHERE es.user_id = $1 AND es.status = 'completed'
+    ORDER BY es.completed_at DESC
+    LIMIT 10
+  `, [req.user.id]);
+  res.json(result.rows);
+});
+
+// ==========================================
+// UPLOAD
 // ==========================================
 
 const storage = multer.diskStorage({
@@ -331,91 +448,74 @@ app.post('/api/upload', authenticate, requireAdmin, upload.single('file'), (req,
 });
 
 // ==========================================
-// EXAMS
+// MIGRATION: legacy data → new structure
 // ==========================================
 
-app.post('/api/exams', authenticate, async (req, res) => {
-  const { category_id } = req.body;
-  const result = await pool.query(
-    'INSERT INTO exams (user_id, category_id, status, total_questions) VALUES ($1, $2, $3, $4) RETURNING *',
-    [req.user.id, category_id, 'in_progress', 0]
-  );
-  res.json(result.rows[0]);
-});
-
-app.put('/api/exams/:id', authenticate, async (req, res) => {
-  const { status, correct_answers, score, completed_at } = req.body;
-  const result = await pool.query(
-    'UPDATE exams SET status = COALESCE($1, status), correct_answers = COALESCE($2, correct_answers), score = COALESCE($3, score), completed_at = COALESCE($4, completed_at) WHERE id = $5 AND user_id = $6 RETURNING *',
-    [status, correct_answers, score, completed_at, req.params.id, req.user.id]
-  );
-  res.json(result.rows[0]);
-});
-
-app.get('/api/exams', authenticate, async (req, res) => {
-  const result = await pool.query(`
-    SELECT e.*, c.name as category_name
-    FROM exams e
-    LEFT JOIN categories c ON c.id = e.category_id
-    WHERE e.user_id = $1
-    ORDER BY e.created_at DESC
-    LIMIT 20
-  `, [req.user.id]);
-  res.json(result.rows);
-});
-
-app.get('/api/exams/last', authenticate, async (req, res) => {
-  const result = await pool.query(`
-    SELECT e.*, c.name as category_name
-    FROM exams e
-    LEFT JOIN categories c ON c.id = e.category_id
-    WHERE e.user_id = $1 AND e.status = 'completed'
-    ORDER BY e.completed_at DESC
-    LIMIT 1
-  `, [req.user.id]);
-  res.json(result.rows[0] || null);
-});
-
-// ==========================================
-// EXAM ANSWERS
-// ==========================================
-
-app.post('/api/exam-answers', authenticate, async (req, res) => {
-  const { exam_id, question_id, selected_answer_ids, is_correct, cycle_number } = req.body;
-  const result = await pool.query(
-    'INSERT INTO exam_answers (exam_id, question_id, selected_answer_ids, is_correct, cycle_number) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-    [exam_id, question_id, JSON.stringify(selected_answer_ids), is_correct, cycle_number || 1]
-  );
-  res.json(result.rows[0]);
-});
-
-// ==========================================
-// DASHBOARD DATA
-// ==========================================
-
-app.get('/api/dashboard/categories', authenticate, async (req, res) => {
-  const cats = await pool.query(`
-    SELECT c.*, COUNT(DISTINCT t.id)::int as topic_count,
-      (SELECT COUNT(*) FROM questions q WHERE q.category_id = c.id)::int as question_count
-    FROM categories c
-    LEFT JOIN topics t ON t.category_id = c.id
-    GROUP BY c.id
-    ORDER BY c.name
+async function runMigration() {
+  // Check if legacy tables exist and have data
+  const legacyCheck = await pool.query(`
+    SELECT EXISTS (
+      SELECT FROM information_schema.tables WHERE table_name = 'questions'
+    ) as has_questions
   `);
-  res.json(cats.rows);
-});
 
-app.get('/api/dashboard/history', authenticate, async (req, res) => {
-  const result = await pool.query(`
-    SELECT e.*, c.name as category_name
-    FROM exams e
-    LEFT JOIN categories c ON c.id = e.category_id
-    WHERE e.user_id = $1 AND e.status = 'completed'
-    ORDER BY e.completed_at DESC
-    LIMIT 10
-  `, [req.user.id]);
-  res.json(result.rows);
-});
+  if (!legacyCheck.rows[0].has_questions) return;
+
+  const legacyCount = await pool.query('SELECT COUNT(*) FROM questions');
+  if (parseInt(legacyCount.rows[0].count) === 0) return;
+
+  console.log('🔄 Migrating legacy data to new structure...');
+
+  // Get or create default category
+  const cats = await pool.query('SELECT * FROM categories ORDER BY name LIMIT 1');
+  let categoryId = cats.rows[0]?.id || null;
+
+  // Create exam definition from first category name
+  const examName = categoryId
+    ? (await pool.query('SELECT name FROM categories WHERE id = $1', [categoryId])).rows[0]?.name || 'Examen importado'
+    : 'Examen importado';
+
+  const def = await pool.query(
+    `INSERT INTO exam_definitions (name, description, category_id)
+     VALUES ($1, $2, $3) RETURNING id`,
+    [examName, 'Importado desde versión anterior', categoryId]
+  );
+  const examDefId = def.rows[0].id;
+
+  // Migrate topics
+  const oldTopics = await pool.query('SELECT * FROM topics');
+  const topicMap = {};
+  for (const t of oldTopics.rows) {
+    const nt = await pool.query(
+      'INSERT INTO exam_topics (name, exam_definition_id) VALUES ($1, $2) RETURNING id',
+      [t.name, examDefId]
+    );
+    topicMap[t.id] = nt.rows[0].id;
+  }
+
+  // Migrate questions
+  const oldQuestions = await pool.query('SELECT * FROM questions');
+  for (const q of oldQuestions.rows) {
+    const newTopicId = topicMap[q.topic_id] || null;
+    if (!newTopicId) continue;
+
+    const nq = await pool.query(
+      'INSERT INTO exam_questions (exam_topic_id, text, image_url, explanation) VALUES ($1, $2, $3, $4) RETURNING id',
+      [newTopicId, q.text, q.image_url, q.explanation]
+    );
+    const newQuestionId = nq.rows[0].id;
+
+    const oldOptions = await pool.query('SELECT * FROM answers WHERE question_id = $1', [q.id]);
+    for (const o of oldOptions.rows) {
+      await pool.query(
+        'INSERT INTO exam_question_options (exam_question_id, text, is_correct) VALUES ($1, $2, $3)',
+        [newQuestionId, o.text, o.is_correct]
+      );
+    }
+  }
+
+  console.log(`✅ Migration complete: ${oldQuestions.rows.length} questions migrated`);
+}
 
 // ==========================================
 // HEALTH
@@ -431,7 +531,7 @@ app.get('/api/health', async (req, res) => {
 });
 
 // ==========================================
-// INIT DB (creates tables if not exist)
+// INIT
 // ==========================================
 
 async function initDB() {
@@ -439,14 +539,11 @@ async function initDB() {
   try {
     await pool.query(sql);
     console.log('✅ Database tables ready');
+    await runMigration();
   } catch (err) {
-    console.error('⚠️ DB init had some issues (tables may already exist):', err.message);
+    console.error('⚠️ DB init issue:', err.message);
   }
 }
-
-// ==========================================
-// START
-// ==========================================
 
 initDB().then(() => {
   app.listen(PORT, () => {

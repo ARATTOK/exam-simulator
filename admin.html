@@ -31,12 +31,11 @@
     <div class="admin-layout">
       <aside class="admin-sidebar">
         <button class="admin-sidebar-link active" data-tab="categories" onclick="switchTab('categories')">📂 Categorías</button>
-        <button class="admin-sidebar-link admin-tab hidden" data-tab="topics" onclick="switchTab('topics')">🏷️ Temas</button>
-        <button class="admin-sidebar-link admin-tab hidden" data-tab="questions" onclick="switchTab('questions')">❓ Preguntas</button>
-        <button class="admin-sidebar-link admin-tab hidden" data-tab="import" onclick="switchTab('import')">📥 Importar</button>
+        <button class="admin-sidebar-link" data-tab="exams" onclick="switchTab('exams')">📋 Exámenes</button>
       </aside>
 
       <main class="admin-content">
+        <!-- Categories tab -->
         <div class="admin-tab-page" id="tab-categories">
           <div class="admin-header">
             <h2>📂 Categorías</h2>
@@ -45,73 +44,96 @@
           <div class="card">
             <div class="table-wrap">
               <table id="categoriesTable">
-                <thead><tr><th>Nombre</th><th>Descripción</th><th>Temas</th><th></th></tr></thead>
+                <thead><tr><th>Nombre</th><th>Descripción</th><th>Exámenes</th><th></th></tr></thead>
                 <tbody></tbody>
               </table>
             </div>
           </div>
         </div>
 
-        <div class="admin-tab-page hidden" id="tab-topics">
+        <!-- Exams tab -->
+        <div class="admin-tab-page hidden" id="tab-exams">
           <div class="admin-header">
-            <h2>🏷️ Temas de <span id="currentCategoryName">—</span></h2>
-            <button class="btn btn-primary" onclick="resetTopicForm();openModal('#topicModal')">+ Nuevo tema</button>
+            <h2>📋 Exámenes</h2>
+            <button class="btn btn-primary" onclick="resetExamForm();openModal('#examModal')">+ Nuevo examen</button>
           </div>
           <div class="card">
             <div class="table-wrap">
-              <table id="topicsTable">
-                <thead><tr><th>Nombre</th><th>Preguntas</th><th></th></tr></thead>
+              <table id="examsTable">
+                <thead><tr><th>Nombre</th><th>Categoría</th><th>Temas</th><th>Preguntas</th><th></th></tr></thead>
                 <tbody></tbody>
               </table>
             </div>
           </div>
-        </div>
 
-        <div class="admin-tab-page hidden" id="tab-questions">
-          <div class="admin-header">
-            <h2>❓ Preguntas de <span id="currentCategoryName2">—</span></h2>
-            <button class="btn btn-primary" onclick="resetQuestionForm();populateTopicSelect('');openModal('#questionModal')">+ Nueva pregunta</button>
-          </div>
-          <div class="card" style="margin-bottom:16px;">
-            <div class="flex items-center gap-3">
-              <label class="form-label" style="margin:0;white-space:nowrap;">Filtrar por tema:</label>
-              <select class="form-select" style="max-width:250px;" id="questionTopicFilter" onchange="filterQuestionsByTopic()">
-                <option value="">Todos los temas</option>
-              </select>
-            </div>
-          </div>
-          <div class="card">
-            <div class="table-wrap">
-              <table id="questionsTable">
-                <thead><tr><th>Pregunta</th><th>Imagen</th><th>Respuestas</th><th>Tema</th><th></th></tr></thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div class="admin-tab-page hidden" id="tab-import">
-          <div class="admin-header">
-            <h2>📥 Importar preguntas</h2>
-          </div>
-          <div class="card">
-            <p class="text-muted text-sm mb-4">Sube un archivo <strong>JSON</strong> o <strong>CSV</strong> con preguntas para importarlas automáticamente.</p>
-            <div class="form-group">
-              <label class="form-label">Formato esperado</label>
-              <div style="background:var(--bg);padding:14px;border-radius:var(--radius);font-size:0.78rem;color:var(--text-secondary);font-family:monospace;overflow-x:auto;">
-                <strong>JSON:</strong><br>
-                [{ "category": "Matemáticas", "text": "¿2+2?", "answer1": "3", "answer2": "4", "correct2": "true" }]<br><br>
-                <strong>CSV:</strong><br>
-                category,text,answer1,correct1,answer2,correct2<br>
-                Matemáticas,¿2+2?,3,,4,true
+          <!-- Exam detail (shown when exam selected) -->
+          <div id="examDetail" class="hidden" style="margin-top:24px;">
+            <div class="card">
+              <div class="admin-header" style="margin-bottom:12px;">
+                <div>
+                  <h3 id="examDetailName" style="font-size:1.1rem;font-weight:700;">—</h3>
+                  <span class="text-muted text-sm" id="examDetailInfo"></span>
+                </div>
+                <button class="btn btn-sm btn-secondary" onclick="deselectExam()">← Volver</button>
               </div>
-            </div>
-            <div class="import-zone" onclick="document.getElementById('importFile').click()">
-              <div class="icon">📄</div>
-              <p><strong>Haz clic para seleccionar archivo</strong></p>
-              <p style="font-size:0.8rem;">o arrastra y suelta aquí</p>
-            </div>
-            <input type="file" id="importFile" accept=".json,.csv" style="display:none" onchange="handleImportFile(this.files[0])">
+
+              <div id="examSubTabs" class="hidden flex gap-2" style="margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:12px;">
+                <button class="btn btn-sm btn-secondary exam-subtab active" data-subtab="topics" onclick="switchSubTab('topics')">🏷️ Temas</button>
+                <button class="btn btn-sm btn-secondary exam-subtab" data-subtab="questions" onclick="switchSubTab('questions')">❓ Preguntas</button>
+                <button class="btn btn-sm btn-secondary exam-subtab" data-subtab="import" onclick="switchSubTab('import')">📥 Importar</button>
+              </div>
+
+              <!-- Topics sub-tab -->
+              <div class="exam-subtab-page" id="subtab-topics">
+                <div class="flex items-center justify-between" style="margin-bottom:12px;">
+                  <span class="form-label" style="margin:0;">Temas del examen</span>
+                  <button class="btn btn-sm btn-primary" onclick="resetTopicForm();openModal('#topicModal')">+ Nuevo tema</button>
+                </div>
+                <div id="examTopicsList"></div>
+              </div>
+
+              <!-- Questions sub-tab -->
+              <div class="exam-subtab-page hidden" id="subtab-questions">
+                <div id="topicDetail" class="hidden">
+                  <div class="flex items-center justify-between" style="margin-bottom:12px;">
+                    <span class="form-label" style="margin:0;" id="topicDetailName">—</span>
+                    <div id="topicQuestionActions" class="hidden flex gap-2">
+                      <button class="btn btn-sm btn-secondary" onclick="deselectTopic()">← Otro tema</button>
+                      <button class="btn btn-sm btn-primary" onclick="resetQuestionForm();openModal('#questionModal')">+ Nueva pregunta</button>
+                    </div>
+                  </div>
+                  <div class="table-wrap">
+                    <table>
+                      <thead><tr><th>Pregunta</th><th>Imagen</th><th>Respuestas</th><th></th></tr></thead>
+                      <tbody id="questionsBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+                <div id="topicDetailEmpty" class="text-muted text-sm" style="padding:24px;text-align:center;">
+                  Selecciona un tema para ver sus preguntas.
+                </div>
+              </div>
+
+              <!-- Import sub-tab -->
+              <div class="exam-subtab-page hidden" id="subtab-import">
+                <p class="text-muted text-sm mb-4">Sube un archivo <strong>JSON</strong> o <strong>CSV</strong> con preguntas para importarlas al examen seleccionado.</p>
+                <div class="form-group">
+                  <label class="form-label">Formato esperado</label>
+                  <div style="background:var(--bg);padding:14px;border-radius:var(--radius);font-size:0.78rem;color:var(--text-secondary);font-family:monospace;overflow-x:auto;">
+                    <strong>JSON:</strong><br>
+                    [{ "topic": "Storage", "text": "¿...?", "answer1": "opción 1", "correct1": "true", "answer2": "opción 2" }]<br><br>
+                    <strong>CSV:</strong><br>
+                    topic,text,answer1,correct1,answer2,correct2<br>
+                    Storage,¿...?,opción 1,true,opción 2,
+                  </div>
+                </div>
+                <div class="import-zone" onclick="document.getElementById('importFile').click()">
+                  <div class="icon">📄</div>
+                  <p><strong>Haz clic para seleccionar archivo</strong></p>
+                  <p style="font-size:0.8rem;">o arrastra y suelta aquí</p>
+                </div>
+                <input type="file" id="importFile" accept=".json,.csv" style="display:none" onchange="handleImportFile(this.files[0])">
+              </div>
             </div>
           </div>
         </div>
@@ -130,15 +152,57 @@
         <input type="hidden" id="catId">
         <div class="form-group">
           <label class="form-label">Nombre</label>
-          <input class="form-input" id="catName" placeholder="Ej: Matemáticas" required>
+          <input class="form-input" id="catName" placeholder="Ej: Nutanix" required>
         </div>
         <div class="form-group">
           <label class="form-label">Descripción</label>
           <textarea class="form-textarea" id="catDesc" placeholder="Descripción opcional"></textarea>
         </div>
-        <div id="catFormError" class="form-error" style="display:none;"></div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" onclick="closeModal('#categoryModal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Exam Modal -->
+  <div class="modal-overlay" id="examModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="examModalTitle">Nuevo examen</h3>
+        <button class="modal-close" onclick="closeModal('#examModal')">✕</button>
+      </div>
+      <form onsubmit="event.preventDefault();saveExam()">
+        <input type="hidden" id="examId">
+        <div class="form-group">
+          <label class="form-label">Nombre del examen</label>
+          <input class="form-input" id="examName" placeholder="Ej: NCP-US - Nutanix Unified Storage 6.10" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Descripción</label>
+          <textarea class="form-textarea" id="examDesc" placeholder="Descripción opcional"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Categoría</label>
+          <select class="form-select" id="examCategory"><option value="">Sin categoría</option></select>
+        </div>
+        <div class="flex gap-3">
+          <div class="form-group" style="flex:1;">
+            <label class="form-label">Nota de corte (%)</label>
+            <input class="form-input" id="examPassingScore" type="number" min="0" max="100" value="70">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label class="form-label">Tiempo sugerido (min)</label>
+            <input class="form-input" id="examMinutes" type="number" min="0" value="0" placeholder="Opcional">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">URL oficial del examen</label>
+          <input class="form-input" id="examUrl" type="url" placeholder="https://... (opcional)">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('#examModal')">Cancelar</button>
           <button type="submit" class="btn btn-primary">Guardar</button>
         </div>
       </form>
@@ -152,13 +216,12 @@
         <h3 id="topicModalTitle">Nuevo tema</h3>
         <button class="modal-close" onclick="closeModal('#topicModal')">✕</button>
       </div>
-      <form onsubmit="event.preventDefault();saveTopic()">
+      <form onsubmit="event.preventDefault();saveExamTopic()">
         <input type="hidden" id="topicId">
         <div class="form-group">
           <label class="form-label">Nombre del tema</label>
-          <input class="form-input" id="topicName" placeholder="Ej: Álgebra" required>
+          <input class="form-input" id="topicName" placeholder="Ej: Cluster Management" required>
         </div>
-        <div id="topicFormError" class="form-error" style="display:none;"></div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" onclick="closeModal('#topicModal')">Cancelar</button>
           <button type="submit" class="btn btn-primary">Guardar</button>
@@ -177,10 +240,6 @@
       <form onsubmit="event.preventDefault();saveQuestion()">
         <input type="hidden" id="qId">
         <div class="form-group">
-          <label class="form-label">Tema</label>
-          <select class="form-select" id="qTopic"><option value="">Sin tema</option></select>
-        </div>
-        <div class="form-group">
           <label class="form-label">Texto de la pregunta</label>
           <textarea class="form-textarea" id="qText" rows="3" placeholder="Escribe la pregunta..." required></textarea>
         </div>
@@ -198,13 +257,12 @@
         </div>
         <div class="form-group">
           <div class="flex items-center justify-between mb-2">
-            <label class="form-label" style="margin:0;">Respuestas</label>
-            <button type="button" class="btn btn-sm btn-secondary" onclick="addAnswerRow()">+ Añadir respuesta</button>
+            <label class="form-label" style="margin:0;">Opciones de respuesta</label>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="addOptionRow()">+ Añadir opción</button>
           </div>
           <div class="text-sm text-muted mb-2">Marca con ✓ las respuestas correctas (una o varias).</div>
-          <div id="answersContainer"></div>
+          <div id="optionsContainer"></div>
         </div>
-        <div id="qFormError" class="form-error" style="display:none;"></div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" onclick="closeModal('#questionModal')">Cancelar</button>
           <button type="submit" class="btn btn-primary">Guardar pregunta</button>
@@ -219,49 +277,31 @@
   <script src="js/auth.js"></script>
   <script src="js/admin.js"></script>
   <script>
-    function switchTab(tab) {
-      $$('.admin-sidebar-link').forEach(l => l.classList.toggle('active', l.dataset.tab === tab));
-      $$('.admin-tab-page').forEach(p => p.classList.toggle('hidden', p.id !== 'tab-' + tab));
+    function switchSubTab(subtab) {
+      $$('.exam-subtab').forEach(b => b.classList.toggle('active', b.dataset.subtab === subtab));
+      $$('.exam-subtab-page').forEach(p => p.classList.toggle('hidden', p.id !== 'subtab-' + subtab));
+    }
+
+    function deselectTopic() {
+      adminState.currentTopicId = null;
+      hide('#topicDetail');
+      show('#topicDetailEmpty');
     }
 
     async function initAdmin() {
       toggleLoading(true);
       try {
         await loadCategories();
-        renderCategorySelect();
-
-        if (adminState.categories.length > 0) {
-          await onCategoryChange(adminState.categories[0].id);
-        }
+        renderCategories();
+        await loadExams();
+        renderExams();
+        populateExamCategorySelect();
       } catch (err) {
         console.error(err);
         toastError('Error al cargar: ' + err.message);
       } finally {
         toggleLoading(false);
         show('#adminContent');
-      }
-    }
-
-    let allQuestions = [];
-
-    const origRefresh = refreshQuestions;
-    refreshQuestions = async function() {
-      allQuestions = await loadQuestions(adminState.currentTopicId);
-      renderQuestions(allQuestions);
-    };
-
-    async function handleImportFile(file) {
-      try {
-        const count = await handleImport(file);
-        toastSuccess(count + ' preguntas importadas correctamente.');
-        await loadCategories();
-        renderCategorySelect();
-        if (adminState.currentCategoryId) {
-          allQuestions = await loadQuestions(null);
-          renderQuestions(allQuestions);
-        }
-      } catch (err) {
-        toastError(err.message);
       }
     }
 
