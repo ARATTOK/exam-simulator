@@ -48,6 +48,7 @@
         <div id="optionsContainer" class="mt-4"></div>
         <div id="feedbackContainer" class="mt-4"></div>
         <div class="exam-actions" id="examActions">
+          <button class="btn btn-secondary hidden" id="backBtn" onclick="goBack()">← Anterior (b)</button>
           <button class="btn btn-primary" id="submitBtn" onclick="handleSubmit()">Enviar respuesta</button>
           <button class="btn btn-secondary hidden" id="nextBtn" onclick="nextQuestion()">Siguiente →</button>
           <button class="btn btn-success hidden" id="finishBtn" onclick="handleFinish()">Ver resultados 🎉</button>
@@ -131,12 +132,22 @@
       }
     }
 
+    function goBack() {
+      if (examState.cycleIndex > 0) {
+        examState.cycleIndex--;
+        awaitingNext = false;
+        renderQuestion();
+        updateProgress();
+      }
+    }
+
     function renderQuestion() {
       const q = getCurrentQuestion();
       if (!q) {
         $('#questionText').textContent = 'Preparando siguiente ronda...';
         hide('#optionsContainer');
         hide('#submitBtn');
+        hide('#backBtn');
         show('#nextBtn');
         return;
       }
@@ -147,26 +158,23 @@
       const qNum = examState.cycleIndex + 1;
       $('#questionNumber').textContent = 'Pregunta ' + qNum + ' de ' + totalInCycle;
 
-      const isMulti = isMultipleCorrect(q);
-      const inputType = isMulti ? 'checkbox' : 'radio';
-      const groupName = 'option_' + q.id;
-
-      $('#questionText').textContent = q.text;
+      // Ensure newlines are preserved in the text content
+      $('#questionText').textContent = q.text ? q.text.replace(/\\n/g, '\n') : '';
 
       const imgContainer = $('#questionImageContainer');
       imgContainer.innerHTML = q.image_url
         ? '<img class="question-image" src="' + esc(q.image_url) + '" alt="Imagen de la pregunta" loading="lazy">'
         : '';
 
-      var badge = isMulti
+      var badge = isMultipleCorrect(q)
         ? '<span class="badge badge-multi">Selección múltiple</span>'
         : '<span class="badge badge-single">Una respuesta</span>';
 
       var container = $('#optionsContainer');
       container.innerHTML = '<div class="options-header">' + badge + '</div>'
-        + q.options.map(function(o) {
-          return '<div class="radio-label" data-opt-id="' + o.id + '" onclick="onOptionClick(this,\'' + inputType + '\',\'' + groupName + '\')">'
-            + '<input type="' + inputType + '" name="' + groupName + '" value="' + o.id + '" aria-label="' + esc(o.text) + '">'
+        + (q.options || []).map(function(o) {
+          return '<div class="radio-label" data-opt-id="' + o.id + '" onclick="onOptionClick(this,\'' + (isMultipleCorrect(q) ? 'checkbox' : 'radio') + '\',\'option_' + q.id + '\')">'
+            + '<input type="' + (isMultipleCorrect(q) ? 'checkbox' : 'radio') + '" name="option_' + q.id + '" value="' + o.id + '" aria-label="' + esc(o.text) + '">'
             + '<span class="option-indicator"></span>'
             + '<span class="option-text">' + esc(o.text) + '</span>'
             + '</div>';
@@ -175,6 +183,11 @@
       hide('#nextBtn'); hide('#finishBtn'); hide('#feedbackContainer');
       show('#submitBtn');
       $('#submitBtn').disabled = true;
+      
+      // Show back button if not first question
+      if (examState.cycleIndex > 0) show('#backBtn');
+      else hide('#backBtn');
+      
       updateFlagState();
       updateProgress();
     }
@@ -309,6 +322,10 @@
       if (e.key === 'Enter') {
         if (!$('#submitBtn').disabled) { handleSubmit(); e.preventDefault(); }
         else if (!$('#nextBtn').classList.contains('hidden')) { nextQuestion(); e.preventDefault(); }
+      }
+      if (e.key === 'b' && !$('#backBtn').classList.contains('hidden')) {
+        goBack();
+        e.preventDefault();
       }
       if ((e.key === 'ArrowRight' || e.key === 'n') && !$('#nextBtn').classList.contains('hidden')) {
         nextQuestion(); e.preventDefault();
