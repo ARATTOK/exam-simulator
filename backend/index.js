@@ -493,79 +493,6 @@ app.post('/api/upload', authenticate, requireAdmin, upload.single('file'), (req,
 // MIGRATION: legacy data → new structure
 // ==========================================
 
-async function runMigration() {
-  // Skip if migration already completed
-  const existingDefs = await pool.query('SELECT COUNT(*) FROM exam_definitions');
-  if (parseInt(existingDefs.rows[0].count) > 0) {
-    console.log('⏭️  Migration already completed, skipping');
-    return;
-  }
-
-  // Check if legacy tables exist and have data
-  const legacyCheck = await pool.query(`
-    SELECT EXISTS (
-      SELECT FROM information_schema.tables WHERE table_name = 'questions'
-    ) as has_questions
-  `);
-
-  if (!legacyCheck.rows[0].has_questions) return;
-
-  const legacyCount = await pool.query('SELECT COUNT(*) FROM questions');
-  if (parseInt(legacyCount.rows[0].count) === 0) return;
-
-  console.log('🔄 Migrating legacy data to new structure...');
-
-  // Get or create default category
-  const cats = await pool.query('SELECT * FROM categories ORDER BY name LIMIT 1');
-  let categoryId = cats.rows[0]?.id || null;
-
-  // Create exam definition from first category name
-  const examName = categoryId
-    ? (await pool.query('SELECT name FROM categories WHERE id = $1', [categoryId])).rows[0]?.name || 'Examen importado'
-    : 'Examen importado';
-
-  const def = await pool.query(
-    `INSERT INTO exam_definitions (name, description, category_id)
-     VALUES ($1, $2, $3) RETURNING id`,
-    [examName, 'Importado desde versión anterior', categoryId]
-  );
-  const examDefId = def.rows[0].id;
-
-  // Migrate topics
-  const oldTopics = await pool.query('SELECT * FROM topics');
-  const topicMap = {};
-  for (const t of oldTopics.rows) {
-    const nt = await pool.query(
-      'INSERT INTO exam_topics (name, exam_definition_id) VALUES ($1, $2) RETURNING id',
-      [t.name, examDefId]
-    );
-    topicMap[t.id] = nt.rows[0].id;
-  }
-
-  // Migrate questions
-  const oldQuestions = await pool.query('SELECT * FROM questions');
-  for (const q of oldQuestions.rows) {
-    const newTopicId = topicMap[q.topic_id] || null;
-    if (!newTopicId) continue;
-
-    const nq = await pool.query(
-      'INSERT INTO exam_questions (exam_topic_id, text, image_url, explanation) VALUES ($1, $2, $3, $4) RETURNING id',
-      [newTopicId, q.text, q.image_url, q.explanation]
-    );
-    const newQuestionId = nq.rows[0].id;
-
-    const oldOptions = await pool.query('SELECT * FROM answers WHERE question_id = $1', [q.id]);
-    for (const o of oldOptions.rows) {
-      await pool.query(
-        'INSERT INTO exam_question_options (exam_question_id, text, is_correct) VALUES ($1, $2, $3)',
-        [newQuestionId, o.text, o.is_correct]
-      );
-    }
-  }
-
-  console.log(`✅ Migration complete: ${oldQuestions.rows.length} questions migrated`);
-}
-
 // ==========================================
 // HEALTH
 // ==========================================
@@ -588,7 +515,6 @@ async function initDB() {
   try {
     await pool.query(sql);
     console.log('✅ Database tables ready');
-    await runMigration();
   } catch (err) {
     console.error('⚠️ DB init issue:', err.message);
   }
