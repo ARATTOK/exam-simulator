@@ -202,3 +202,25 @@ function toast(message, type = 'info', duration = 3500) {
 function toastSuccess(msg) { toast(msg, 'success'); }
 function toastError(msg) { toast(msg, 'error'); }
 function toastInfo(msg) { toast(msg, 'info'); }
+
+// --- Theme toggle ---
+function getTheme() {
+  return localStorage.getItem('simuexam-theme') || 'light';
+}
+
+function setTheme(theme) {
+  localStorage.setItem('simuexam-theme', theme);
+  document.documentElement.classList.add('theme-transitioning');
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.innerHTML = theme === 'dark' ? '☀️' : '🌙';
+  setTimeout(() => document.documentElement.classList.remove('theme-transitioning'), 400);
+}
+
+function toggleTheme() {
+  setTheme(getTheme() === 'dark' ? 'light' : 'dark');
+}
+
+function initTheme() {
+  setTheme(getTheme());
+}
