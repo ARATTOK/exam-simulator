@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SimuExam — Admin</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>📝</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="admin.html" class="nav-brand">
+        <img src="logo.svg" alt="SimuExam"> SimuExam <span style="font-size:0.7rem;font-weight:400;background:var(--primary-light);color:var(--primary);padding:2px 8px;border-radius:4px;">ADMIN</span>
+      </a>
+      <div class="nav-links">
+        <span class="nav-link user-info" id="userDisplay">👤 admin</span>
+        <a href="dashboard.html" class="nav-link">Ver como usuario</a>
+        <button class="nav-link logout" onclick="logout()">Cerrar sesión</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="loading-center" id="loadingIndicator">
+    <div class="spinner"></div>
+    <p>Cargando panel de administración...</p>
+  </div>
+
+  <div id="adminContent" class="hidden">
+    <div class="admin-layout">
+      <aside class="admin-sidebar">
+        <button class="admin-sidebar-link active" data-tab="categories" onclick="switchTab('categories')">📂 Categorías</button>
+        <button class="admin-sidebar-link admin-tab hidden" data-tab="topics" onclick="switchTab('topics')">🏷️ Temas</button>
+        <button class="admin-sidebar-link admin-tab hidden" data-tab="questions" onclick="switchTab('questions')">❓ Preguntas</button>
+        <button class="admin-sidebar-link admin-tab hidden" data-tab="import" onclick="switchTab('import')">📥 Importar</button>
+      </aside>
+
+      <main class="admin-content">
+        <div class="admin-tab-page" id="tab-categories">
+          <div class="admin-header">
+            <h2>📂 Categorías</h2>
+            <button class="btn btn-primary" onclick="resetCategoryForm();openModal('#categoryModal')">+ Nueva categoría</button>
+          </div>
+          <div class="card">
+            <div class="table-wrap">
+              <table id="categoriesTable">
+                <thead><tr><th>Nombre</th><th>Descripción</th><th>Temas</th><th></th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-tab-page hidden" id="tab-topics">
+          <div class="admin-header">
+            <h2>🏷️ Temas de <span id="currentCategoryName">—</span></h2>
+            <button class="btn btn-primary" onclick="resetTopicForm();openModal('#topicModal')">+ Nuevo tema</button>
+          </div>
+          <div class="card">
+            <div class="table-wrap">
+              <table id="topicsTable">
+                <thead><tr><th>Nombre</th><th>Preguntas</th><th></th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-tab-page hidden" id="tab-questions">
+          <div class="admin-header">
+            <h2>❓ Preguntas de <span id="currentCategoryName2">—</span></h2>
+            <button class="btn btn-primary" onclick="resetQuestionForm();populateTopicSelect('');openModal('#questionModal')">+ Nueva pregunta</button>
+          </div>
+          <div class="card" style="margin-bottom:16px;">
+            <div class="flex items-center gap-3">
+              <label class="form-label" style="margin:0;white-space:nowrap;">Filtrar por tema:</label>
+              <select class="form-select" style="max-width:250px;" id="questionTopicFilter" onchange="filterQuestionsByTopic()">
+                <option value="">Todos los temas</option>
+              </select>
+            </div>
+          </div>
+          <div class="card">
+            <div class="table-wrap">
+              <table id="questionsTable">
+                <thead><tr><th>Pregunta</th><th>Imagen</th><th>Respuestas</th><th>Tema</th><th></th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-tab-page hidden" id="tab-import">
+          <div class="admin-header">
+            <h2>📥 Importar preguntas</h2>
+          </div>
+          <div class="card">
+            <p class="text-muted text-sm mb-4">Sube un archivo <strong>JSON</strong> o <strong>CSV</strong> con preguntas para importarlas automáticamente.</p>
+            <div class="form-group">
+              <label class="form-label">Formato esperado</label>
+              <div style="background:var(--bg);padding:14px;border-radius:var(--radius);font-size:0.78rem;color:var(--text-secondary);font-family:monospace;overflow-x:auto;">
+                <strong>JSON:</strong><br>
+                [{ "category": "Matemáticas", "text": "¿2+2?", "answer1": "3", "answer2": "4", "correct2": "true" }]<br><br>
+                <strong>CSV:</strong><br>
+                category,text,answer1,correct1,answer2,correct2<br>
+                Matemáticas,¿2+2?,3,,4,true
+              </div>
+            </div>
+            <div class="import-zone" onclick="document.getElementById('importFile').click()">
+              <div class="icon">📄</div>
+              <p><strong>Haz clic para seleccionar archivo</strong></p>
+              <p style="font-size:0.8rem;">o arrastra y suelta aquí</p>
+            </div>
+            <input type="file" id="importFile" accept=".json,.csv" style="display:none" onchange="handleImportFile(this.files[0])">
+            <div id="importResult" class="hidden mt-4"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Category Modal -->
+  <div class="modal-overlay" id="categoryModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="catModalTitle">Nueva categoría</h3>
+        <button class="modal-close" onclick="closeModal('#categoryModal')">✕</button>
+      </div>
+      <form onsubmit="event.preventDefault();saveCategory()">
+        <input type="hidden" id="catId">
+        <div class="form-group">
+          <label class="form-label">Nombre</label>
+          <input class="form-input" id="catName" placeholder="Ej: Matemáticas" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Descripción</label>
+          <textarea class="form-textarea" id="catDesc" placeholder="Descripción opcional"></textarea>
+        </div>
+        <div id="catFormError" class="form-error" style="display:none;"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('#categoryModal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Topic Modal -->
+  <div class="modal-overlay" id="topicModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="topicModalTitle">Nuevo tema</h3>
+        <button class="modal-close" onclick="closeModal('#topicModal')">✕</button>
+      </div>
+      <form onsubmit="event.preventDefault();saveTopic()">
+        <input type="hidden" id="topicId">
+        <div class="form-group">
+          <label class="form-label">Nombre del tema</label>
+          <input class="form-input" id="topicName" placeholder="Ej: Álgebra" required>
+        </div>
+        <div id="topicFormError" class="form-error" style="display:none;"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('#topicModal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Question Modal -->
+  <div class="modal-overlay" id="questionModal">
+    <div class="modal" style="max-width:700px;">
+      <div class="modal-header">
+        <h3 id="qModalTitle">Nueva pregunta</h3>
+        <button class="modal-close" onclick="closeModal('#questionModal')">✕</button>
+      </div>
+      <form onsubmit="event.preventDefault();saveQuestion()">
+        <input type="hidden" id="qId">
+        <div class="form-group">
+          <label class="form-label">Tema</label>
+          <select class="form-select" id="qTopic"><option value="">Sin tema</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Texto de la pregunta</label>
+          <textarea class="form-textarea" id="qText" rows="3" placeholder="Escribe la pregunta..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">URL de imagen <span class="text-muted" style="font-weight:400;">(opcional)</span></label>
+          <input class="form-input" id="qImage" placeholder="https://ejemplo.com/imagen.jpg">
+          <div class="flex items-center gap-2 mt-2">
+            <span class="text-sm text-muted">O sube una imagen:</span>
+            <input type="file" accept="image/*" onchange="uploadImageFile(this)" style="font-size:0.8rem;">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Explicación <span class="text-muted" style="font-weight:400;">(opcional)</span></label>
+          <textarea class="form-textarea" id="qExplanation" rows="2" placeholder="Explica por qué la respuesta es correcta..."></textarea>
+        </div>
+        <div class="form-group">
+          <div class="flex items-center justify-between mb-2">
+            <label class="form-label" style="margin:0;">Respuestas</label>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="addAnswerRow()">+ Añadir respuesta</button>
+          </div>
+          <div class="text-sm text-muted mb-2">Marca con ✓ las respuestas correctas (una o varias).</div>
+          <div id="answersContainer"></div>
+        </div>
+        <div id="qFormError" class="form-error" style="display:none;"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('#questionModal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar pregunta</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/admin.js"></script>
+  <script>
+    function switchTab(tab) {
+      $$('.admin-sidebar-link').forEach(l => l.classList.toggle('active', l.dataset.tab === tab));
+      $$('.admin-tab-page').forEach(p => p.classList.toggle('hidden', p.id !== 'tab-' + tab));
+    }
+
+    async function initAdmin() {
+      toggleLoading(true);
+      try {
+        await loadCategories();
+        renderCategorySelect();
+
+        if (adminState.categories.length > 0) {
+          await onCategoryChange(adminState.categories[0].id);
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Error al cargar: ' + err.message);
+      } finally {
+        toggleLoading(false);
+        show('#adminContent');
+      }
+    }
+
+    async function importAndReload(count) {
+      const resultEl = $('#importResult');
+      resultEl.innerHTML = `<div class="auth-success" style="display:block;">✅ ${count} preguntas importadas correctamente.</div>`;
+      show(resultEl);
+      await loadCategories();
+      renderCategorySelect();
+      if (adminState.currentCategoryId) {
+        allQuestions = await loadQuestions(null);
+        renderQuestions(allQuestions);
+      }
+    }
+
+    async function handleImportFile(file) {
+      const resultEl = $('#importResult');
+      hide(resultEl);
+      try {
+        const count = await handleImport(file);
+        const savedCallback = importAndReload;
+        savedCallback(count);
+      } catch (err) {
+        resultEl.innerHTML = `<div class="auth-error" style="display:block;">❌ ${err.message}</div>`;
+        show(resultEl);
+      }
+    }
+
+    let allQuestions = [];
+
+    // Save original and wrap
+    const origRefresh = refreshQuestions;
+    refreshQuestions = async function() {
+      allQuestions = await loadQuestions(adminState.currentTopicId);
+      renderQuestions(allQuestions);
+    };
+
+    // Override importAndReload inline
+    const origHandleImport = handleImport;
+    const handleImportFile = async function(file) {
+      const resultEl = $('#importResult');
+      hide(resultEl);
+      try {
+        const count = await origHandleImport(file);
+        resultEl.innerHTML = `<div class="auth-success" style="display:block;">✅ ${count} preguntas importadas correctamente.</div>`;
+        show(resultEl);
+        await loadCategories();
+        renderCategorySelect();
+        if (adminState.currentCategoryId) {
+          allQuestions = await loadQuestions(null);
+          renderQuestions(allQuestions);
+        }
+      } catch (err) {
+        resultEl.innerHTML = `<div class="auth-error" style="display:block;">❌ ${err.message}</div>`;
+        show(resultEl);
+      }
+    };
+
+    checkSession().then(session => {
+      if (!session) { window.location.href = 'index.html'; return; }
+      if (session.profile?.role !== 'admin') { window.location.href = 'dashboard.html'; return; }
+      $('#userDisplay').textContent = '👤 ' + (session.user?.email || 'admin');
+      initAdmin();
+    });
+  </script>
+</body>
+</html>

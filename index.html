@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SimuExam — Iniciar sesión</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>📝</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <img src="logo.svg" alt="SimuExam">
+        <span>SimuExam</span>
+      </div>
+
+      <div id="loginView">
+        <div class="auth-title">Iniciar sesión</div>
+        <div class="auth-subtitle">Accede a tu panel de exámenes</div>
+
+        <div class="role-toggle" role="radiogroup">
+          <button class="role-option active" data-role="user" onclick="setRole('user')">👤 Usuario</button>
+          <button class="role-option" data-role="admin" onclick="setRole('admin')">🔐 Admin</button>
+        </div>
+
+        <div id="authError" class="auth-error"></div>
+        <div id="authSuccess" class="auth-success"></div>
+
+        <form id="loginForm" onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <label class="form-label" for="loginEmail">Correo electrónico</label>
+            <input class="form-input" id="loginEmail" type="email" placeholder="tu@correo.com" required autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="loginPassword">Contraseña</label>
+            <input class="form-input" id="loginPassword" type="password" placeholder="••••••••" required autocomplete="current-password">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block btn-lg" id="loginBtn">
+            Iniciar sesión
+          </button>
+        </form>
+
+        <div class="auth-footer">
+          ¿No tienes cuenta?
+          <button type="button" onclick="showRegister()">Crear cuenta</button>
+        </div>
+      </div>
+
+      <div id="registerView" class="hidden">
+        <div class="auth-title">Crear cuenta</div>
+        <div class="auth-subtitle" id="registerSubtitle">Regístrate como usuario</div>
+
+        <div id="regError" class="auth-error"></div>
+
+        <form id="registerForm" onsubmit="handleRegister(event)">
+          <div class="form-group">
+            <label class="form-label" for="regName">Nombre</label>
+            <input class="form-input" id="regName" type="text" placeholder="Tu nombre" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="regEmail">Correo electrónico</label>
+            <input class="form-input" id="regEmail" type="email" placeholder="tu@correo.com" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="regPassword">Contraseña</label>
+            <input class="form-input" id="regPassword" type="password" placeholder="Mín. 6 caracteres" required minlength="6">
+          </div>
+          <div id="adminSecretField" class="form-group hidden">
+            <label class="form-label" for="regSecret">🔑 Código secreto de administrador</label>
+            <input class="form-input" id="regSecret" type="password" placeholder="Ingresa el código secreto">
+            <span class="form-hint">Solo si tienes permisos de administrador.</span>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block btn-lg" id="registerBtn">
+            Crear cuenta
+          </button>
+        </form>
+
+        <div class="auth-footer">
+          ¿Ya tienes cuenta?
+          <button type="button" onclick="showLogin()">Iniciar sesión</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    let selectedRole = 'user';
+
+    function setRole(role) {
+      selectedRole = role;
+      $$('.role-option').forEach(b => b.classList.toggle('active', b.dataset.role === role));
+    }
+
+    function showRegister() {
+      hide('#loginView');
+      show('#registerView');
+      updateRegisterView();
+    }
+
+    function showLogin() {
+      hide('#registerView');
+      show('#loginView');
+      hide('#authError');
+      hide('#authSuccess');
+    }
+
+    function updateRegisterView() {
+      if (selectedRole === 'admin') {
+        $('#registerSubtitle').textContent = 'Regístrate como administrador';
+        show('#adminSecretField');
+        $('#regSecret').required = true;
+      } else {
+        $('#registerSubtitle').textContent = 'Regístrate como usuario';
+        hide('#adminSecretField');
+        $('#regSecret').required = false;
+      }
+    }
+
+    $$('.role-option').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!$('#registerView').classList.contains('hidden')) updateRegisterView();
+      });
+    });
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = $('#loginEmail').value.trim();
+      const password = $('#loginPassword').value;
+      const errorEl = $('#authError');
+      const btn = $('#loginBtn');
+
+      hide(errorEl); hide('#authSuccess');
+      btn.disabled = true; btn.textContent = 'Ingresando...';
+
+      try {
+        await login(email, password);
+        if (selectedRole === 'admin' && !isAdmin()) throw new Error('Esta cuenta no tiene permisos de administrador.');
+
+        if (isAdmin()) window.location.href = 'admin.html';
+        else window.location.href = 'dashboard.html';
+      } catch (err) {
+        errorEl.textContent = err.message;
+        show(errorEl);
+      } finally {
+        btn.disabled = false; btn.textContent = 'Iniciar sesión';
+      }
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const name = $('#regName').value.trim();
+      const email = $('#regEmail').value.trim();
+      const password = $('#regPassword').value;
+      const secret = $('#regSecret').value.trim();
+      const errorEl = $('#regError');
+      const btn = $('#registerBtn');
+
+      hide(errorEl);
+      btn.disabled = true; btn.textContent = 'Creando cuenta...';
+
+      try {
+        let role = 'user';
+        if (selectedRole === 'admin') {
+          if (secret !== ADMIN_SECRET) throw new Error('❌ Código secreto de administrador incorrecto.');
+          role = 'admin';
+        }
+        await register(email, password, name, role, secret);
+
+        const successEl = $('#authSuccess');
+        successEl.innerHTML = '✅ Cuenta creada con éxito. <strong>Ya puedes iniciar sesión.</strong>';
+        show(successEl);
+        showLogin();
+      } catch (err) {
+        errorEl.textContent = err.message;
+        show(errorEl);
+      } finally {
+        btn.disabled = false; btn.textContent = 'Crear cuenta';
+      }
+    }
+
+    // Auto-login check
+    checkSession().then(session => {
+      if (session) {
+        if (isAdmin()) window.location.href = 'admin.html';
+        else window.location.href = 'dashboard.html';
+      }
+    });
+  </script>
+</body>
+</html>
