@@ -2,10 +2,10 @@
    SimuExam — API Client (Express backend)
    ============================================ */
 
-// ⚠️ CONFIGURA AQUÍ LA URL DE TU BACKEND
 const API_URL = 'https://exam-simulator-d1kr.onrender.com';
 
 let apiToken = null;
+let apiReady = false;
 
 function setApiToken(token) {
   apiToken = token;
@@ -24,17 +24,37 @@ function clearApiToken() {
 
 async function apiRequest(method, path, body) {
   const token = getApiToken();
-  const headers = { 'Content-Type': 'application/json' };
+  const headers = {};
   if (token) headers['Authorization'] = 'Bearer ' + token;
 
   const opts = { method, headers };
-  if (body) opts.body = JSON.stringify(body);
+  if (body) {
+    headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
 
-  const res = await fetch(API_URL + path, opts);
-  const data = await res.json();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  opts.signal = controller.signal;
 
-  if (!res.ok) throw new Error(data.error || 'Error en la solicitud');
-  return data;
+  try {
+    const res = await fetch(API_URL + path, opts);
+    clearTimeout(timeout);
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { error: text }; }
+    if (!res.ok) throw new Error(data.error || 'Error ' + res.status);
+    return data;
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err.name === 'AbortError') {
+      throw new Error('El servidor no responde (timeout). El backend en Render se duerme si no se usa. Abre https://exam-simulator-d1kr.onrender.com/api/health en tu navegador para despertarlo.');
+    }
+    if (err.name === 'TypeError' && err.message.includes('fetch')) {
+      throw new Error('No se puede conectar al servidor. Verifica que el backend esté activo.');
+    }
+    throw err;
+  }
 }
 
 function apiGet(path) { return apiRequest('GET', path); }
@@ -47,12 +67,20 @@ async function apiUpload(file) {
   const form = new FormData();
   form.append('file', file);
 
-  const res = await fetch(API_URL + '/api/upload', {
-    method: 'POST',
-    headers: token ? { 'Authorization': 'Bearer ' + token } : {},
-    body: form,
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Error al subir');
-  return data.url;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  const opts = { method: 'POST', body: form, signal: controller.signal };
+  if (token) opts.headers = { 'Authorization': 'Bearer ' + token };
+
+  try {
+    const res = await fetch(API_URL + '/api/upload', opts);
+    clearTimeout(timeout);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al subir');
+    return data.url;
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err.name === 'AbortError') throw new Error('Timeout al subir imagen');
+    throw err;
+  }
 }
