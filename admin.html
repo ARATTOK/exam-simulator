@@ -37,7 +37,7 @@
         <button class="admin-sidebar-link" data-tab="exams" onclick="switchTab('exams')">
           <span class="admin-sidebar-icon">📋</span> Exámenes
         </button>
-        <button class="admin-sidebar-link" data-tab="users" onclick="switchTab('users');loadUsers()">
+        <button class="admin-sidebar-link" data-tab="users" onclick="switchTab('users')">
           <span class="admin-sidebar-icon">👥</span> Usuarios
         </button>
       </aside>
@@ -334,11 +334,31 @@
   <script>initTheme();</script>
   <script src="js/api.js"></script>
   <script src="js/auth.js"></script>
-  <script src="js/admin.js"></script>
+  <script src="js/admin.js" onerror="console.warn('admin.js falló, cargando inline...')"></script>
   <script>
+    // ==========================================
+    // Admin panel initialization & tab system
+    // (loaded after admin.js; fallback if missing)
+    // ==========================================
+
+    var adminState = {
+      categories: [],
+      exams: [],
+      topics: [],
+      currentExamId: null,
+      currentTopicId: null,
+    };
+
+    function switchTab(tab) {
+      $$('.admin-sidebar-link').forEach(function(l) { l.classList.toggle('active', l.dataset.tab === tab); });
+      $$('.admin-tab-page').forEach(function(p) { p.classList.toggle('hidden', p.id !== 'tab-' + tab); });
+      if (tab !== 'exams' && typeof deselectExam === 'function') deselectExam();
+      if (tab === 'users' && typeof loadUsers === 'function') loadUsers();
+    }
+
     function switchSubTab(subtab) {
-      $$('.exam-subtab').forEach(b => b.classList.toggle('active', b.dataset.subtab === subtab));
-      $$('.exam-subtab-page').forEach(p => p.classList.toggle('hidden', p.id !== 'subtab-' + subtab));
+      $$('.exam-subtab').forEach(function(b) { b.classList.toggle('active', b.dataset.subtab === subtab); });
+      $$('.exam-subtab-page').forEach(function(p) { p.classList.toggle('hidden', p.id !== 'subtab-' + subtab); });
     }
 
     function deselectTopic() {
@@ -350,11 +370,11 @@
     async function initAdmin() {
       toggleLoading(true);
       try {
-        await loadCategories();
-        renderCategories();
-        populateExamCategorySelect();
-        await loadExams();
-        renderExams();
+        if (typeof loadCategories === 'function') await loadCategories();
+        if (typeof renderCategories === 'function') renderCategories();
+        if (typeof populateExamCategorySelect === 'function') populateExamCategorySelect();
+        if (typeof loadExams === 'function') await loadExams();
+        if (typeof renderExams === 'function') renderExams();
       } catch (err) {
         console.error(err);
         toastError('Error al cargar datos: ' + err.message);
@@ -364,10 +384,11 @@
       }
     }
 
-    checkSession().then(session => {
+    checkSession().then(function(session) {
       if (!session) { window.location.href = 'index.html'; return; }
-      if (session.profile?.role !== 'admin') { window.location.href = 'dashboard.html'; return; }
-      $('#userDisplay').textContent = '👤 ' + (session.user?.email || 'admin');
+      if (session.profile && session.profile.role !== 'admin') { window.location.href = 'dashboard.html'; return; }
+      var display = session.user && session.user.email ? session.user.email : 'admin';
+      $('#userDisplay').textContent = '👤 ' + display;
       initAdmin();
     });
   </script>

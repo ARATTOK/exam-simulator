@@ -1,10 +1,4 @@
-let adminState = {
-  categories: [],
-  exams: [],
-  topics: [],
-  currentExamId: null,
-  currentTopicId: null,
-};
+// adminState is declared globally in admin.html inline script
 
 // ==========================================
 // CATEGORIES
@@ -498,12 +492,4 @@ function resetUserForm() {
   $('#userRole').value = 'user';
 }
 
-// ==========================================
-// TABS
-// ==========================================
-
-function switchTab(tab) {
-  $$('.admin-sidebar-link').forEach(l => l.classList.toggle('active', l.dataset.tab === tab));
-  $$('.admin-tab-page').forEach(p => p.classList.toggle('hidden', p.id !== 'tab-' + tab));
-  if (tab !== 'exams') deselectExam();
-}
+// switchTab is defined in admin.html inline script
