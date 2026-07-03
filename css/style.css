@@ -1094,11 +1094,16 @@ a:hover { text-decoration: underline; }
 }
 
 .exam-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   gap: 12px;
   margin-top: 28px;
-  justify-content: flex-end;
+  align-items: center;
 }
+
+#backBtn { justify-self: start; }
+#submitBtn { justify-self: center; }
+#nextBtn, #finishBtn { justify-self: end; }
 
 /* Feedback */
 .feedback-box {
@@ -1641,8 +1646,11 @@ tr.selected td { background: var(--primary-light); }
   .radio-label { padding: 14px 16px; font-size: 0.88rem; min-height: 48px; }
   .option-indicator { width: 20px; height: 20px; min-width: 20px; }
   .question-image { max-height: 200px; }
-  .exam-actions { flex-direction: column; }
-  .exam-actions .btn { width: 100%; }
+  .exam-actions {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  #backBtn, #submitBtn, #nextBtn, #finishBtn { justify-self: stretch; }
   .results-stats { grid-template-columns: 1fr; }
   .results-score-circle { width: 120px; height: 120px; font-size: 2.2rem; }
 }
@@ -1653,8 +1661,11 @@ tr.selected td { background: var(--primary-light); }
   .radio-label { padding: 16px 14px; font-size: 0.92rem; min-height: 48px; }
   .option-indicator { width: 24px; height: 24px; min-width: 24px; }
   .exam-progress { flex-wrap: wrap; gap: 6px; padding: 12px 16px; }
-  .exam-actions { flex-direction: column; }
-  .exam-actions .btn { width: 100%; }
+  .exam-actions {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  #backBtn, #submitBtn, #nextBtn, #finishBtn { justify-self: stretch; }
   .btn-lg { padding: 16px 24px; font-size: 1rem; }
   .auth-card { padding: 24px 18px; }
   .auth-title { font-size: 1.2rem; }

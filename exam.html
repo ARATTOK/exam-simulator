@@ -172,11 +172,11 @@
 
       var container = $('#optionsContainer');
       container.innerHTML = '<div class="options-header">' + badge + '</div>'
-        + (q.options || []).map(function(o) {
+        + (q.options || []).map(function(o, i) {
           return '<div class="radio-label" data-opt-id="' + o.id + '" onclick="onOptionClick(this,\'' + (isMultipleCorrect(q) ? 'checkbox' : 'radio') + '\',\'option_' + q.id + '\')">'
             + '<input type="' + (isMultipleCorrect(q) ? 'checkbox' : 'radio') + '" name="option_' + q.id + '" value="' + o.id + '" aria-label="' + esc(o.text) + '">'
             + '<span class="option-indicator"></span>'
-            + '<span class="option-text">' + esc(o.text) + '</span>'
+            + '<span class="option-text">(' + (i + 1) + ') ' + esc(o.text) + '</span>'
             + '</div>';
         }).join('');
 
