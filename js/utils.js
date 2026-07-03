@@ -169,3 +169,10 @@ document.addEventListener('keydown', (e) => {
     $$('.modal-overlay.open').forEach(m => m.classList.remove('open'));
   }
 });
+
+// --- HTML escape ---
+function esc(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}

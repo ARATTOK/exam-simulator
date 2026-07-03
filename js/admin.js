@@ -419,8 +419,4 @@ function showFormError(elId, msg) {
   if (el) { el.textContent = msg; el.style.display = 'block'; }
 }
 
-function esc(str) {
-  const div = document.createElement('div');
-  div.textContent = str || '';
-  return div.innerHTML;
-}
+
