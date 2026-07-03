@@ -94,8 +94,8 @@
       }
 
       if (!result) {
-        alert('No hay resultados disponibles.');
-        window.location.href = 'dashboard.html';
+        toastError('No hay resultados disponibles.');
+        setTimeout(() => { window.location.href = 'dashboard.html'; }, 500);
         return;
       }
 

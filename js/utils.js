@@ -176,3 +176,29 @@ function esc(str) {
   div.textContent = str || '';
   return div.innerHTML;
 }
+
+// --- Toast notifications ---
+function toast(message, type = 'info', duration = 3500) {
+  let container = document.getElementById('toastContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
+
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.innerHTML = message;
+
+  container.appendChild(el);
+
+  setTimeout(() => {
+    el.classList.add('toast-out');
+    setTimeout(() => el.remove(), 300);
+  }, duration);
+}
+
+function toastSuccess(msg) { toast(msg, 'success'); }
+function toastError(msg) { toast(msg, 'error'); }
+function toastInfo(msg) { toast(msg, 'info'); }

@@ -50,11 +50,12 @@ async function saveCategory() {
       await apiPost('/api/categories', { name, description: desc });
     }
   } catch (err) {
-    return showFormError('catFormError', err.message);
+    return toastError(err.message);
   }
   closeModal('#categoryModal');
   await loadCategories();
   renderCategories();
+  toastSuccess(id ? 'Categoría actualizada' : 'Categoría creada');
 }
 
 function editCategory(id) {
@@ -72,9 +73,10 @@ async function deleteCategory(id) {
   if (!confirm('¿Eliminar esta categoría? También se eliminarán todas sus preguntas.')) return;
   try {
     await apiDelete('/api/categories/' + id);
-  } catch (err) { return alert('Error: ' + err.message); }
+  } catch (err) { return toastError('Error: ' + err.message); }
   await loadCategories();
   renderCategories();
+  toastSuccess('Categoría eliminada');
 }
 
 function resetCategoryForm() {
@@ -126,10 +128,11 @@ async function saveTopic() {
     } else {
       await apiPost('/api/topics', { name, category_id: adminState.currentCategoryId });
     }
-  } catch (err) { return showFormError('topicFormError', err.message); }
+  } catch (err) { return toastError(err.message); }
   closeModal('#topicModal');
   await loadTopics(adminState.currentCategoryId);
   renderTopics();
+  toastSuccess(id ? 'Tema actualizado' : 'Tema creado');
 }
 
 function editTopic(id) {
@@ -144,9 +147,10 @@ function editTopic(id) {
 
 async function deleteTopic(id) {
   if (!confirm('¿Eliminar este tema?')) return;
-  try { await apiDelete('/api/topics/' + id); } catch (err) { return alert('Error: ' + err.message); }
+  try { await apiDelete('/api/topics/' + id); } catch (err) { return toastError('Error: ' + err.message); }
   await loadTopics(adminState.currentCategoryId);
   renderTopics();
+  toastSuccess('Tema eliminado');
 }
 
 function resetTopicForm() {
@@ -218,10 +222,11 @@ async function saveQuestion() {
     }
 
     await apiPut('/api/questions/' + questionId + '/answers', { answers });
-  } catch (err) { return showFormError('qFormError', err.message); }
+  } catch (err) { return toastError(err.message); }
 
   closeModal('#questionModal');
   await refreshQuestions();
+  toastSuccess(id ? 'Pregunta actualizada' : 'Pregunta creada');
 }
 
 function editQuestion(id) {
@@ -242,8 +247,9 @@ function editQuestion(id) {
 
 async function deleteQuestion(id) {
   if (!confirm('¿Eliminar esta pregunta permanentemente?')) return;
-  try { await apiDelete('/api/questions/' + id); } catch (err) { return alert('Error: ' + err.message); }
+  try { await apiDelete('/api/questions/' + id); } catch (err) { return toastError('Error: ' + err.message); }
   await refreshQuestions();
+  toastSuccess('Pregunta eliminada');
 }
 
 function resetQuestionForm() {
@@ -304,9 +310,9 @@ async function uploadImageFile(input) {
   try {
     const url = await apiUpload(file);
     $('#qImage').value = url;
-    alert('✅ Imagen subida con éxito');
+    toastSuccess('Imagen subida con éxito');
   } catch (err) {
-    alert('Error al subir imagen: ' + err.message);
+    toastError('Error al subir imagen: ' + err.message);
   }
 }
 

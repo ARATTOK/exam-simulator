@@ -38,7 +38,8 @@ async function register(email, password, displayName, role, secret) {
 async function logout() {
   clearApiToken();
   currentUser = null;
-  window.location.href = 'index.html';
+  toastSuccess('Sesión cerrada');
+  setTimeout(() => { window.location.href = 'index.html'; }, 300);
 }
 
 function isAdmin() {

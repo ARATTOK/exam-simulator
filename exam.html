@@ -74,8 +74,8 @@
       toggleLoading(true);
       const saved = loadExamState();
       if (!saved || saved.completed) {
-        alert('No hay un examen en curso.');
-        window.location.href = 'dashboard.html';
+        toastError('No hay un examen en curso.');
+        setTimeout(() => { window.location.href = 'dashboard.html'; }, 500);
         return;
       }
       examState = saved;

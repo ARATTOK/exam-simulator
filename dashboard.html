@@ -130,7 +130,7 @@
         renderHistory(exams || []);
       } catch (err) {
         console.error(err);
-        alert('Error al cargar datos: ' + err.message);
+        toastError('Error al cargar datos: ' + err.message);
       } finally {
         toggleLoading(false);
         show('#dashboardContent');
@@ -197,15 +197,15 @@
     }
 
     async function startExam() {
-      if (!selectedCategoryId) return alert('Selecciona una categoría');
+      if (!selectedCategoryId) return toastError('Selecciona una categoría');
       const count = parseInt($('#questionCount').value) || categoryQuestionsCount;
-      if (count < 1 || count > categoryQuestionsCount) return alert('Elige entre 1 y ' + categoryQuestionsCount + ' preguntas.');
+      if (count < 1 || count > categoryQuestionsCount) return toastError('Elige entre 1 y ' + categoryQuestionsCount + ' preguntas.');
 
       try {
         await initExam(selectedCategoryId, selectedTopicId, selectedMode, count);
         window.location.href = 'exam.html';
       } catch (err) {
-        alert('Error: ' + err.message);
+        toastError('Error: ' + err.message);
       }
     }
 

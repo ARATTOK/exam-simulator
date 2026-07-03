@@ -24,9 +24,6 @@
           <button class="role-option" data-role="admin" onclick="setRole('admin')">🔐 Admin</button>
         </div>
 
-        <div id="authError" class="auth-error"></div>
-        <div id="authSuccess" class="auth-success"></div>
-
         <form id="loginForm" onsubmit="handleLogin(event)">
           <div class="form-group">
             <label class="form-label" for="loginEmail">Correo electrónico</label>
@@ -50,8 +47,6 @@
       <div id="registerView" class="hidden">
         <div class="auth-title">Crear cuenta</div>
         <div class="auth-subtitle" id="registerSubtitle">Regístrate como usuario</div>
-
-        <div id="regError" class="auth-error"></div>
 
         <form id="registerForm" onsubmit="handleRegister(event)">
           <div class="form-group">
@@ -104,8 +99,6 @@
     function showLogin() {
       hide('#registerView');
       show('#loginView');
-      hide('#authError');
-      hide('#authSuccess');
     }
 
     function updateRegisterView() {
@@ -130,21 +123,21 @@
       e.preventDefault();
       const email = $('#loginEmail').value.trim();
       const password = $('#loginPassword').value;
-      const errorEl = $('#authError');
       const btn = $('#loginBtn');
 
-      hide(errorEl); hide('#authSuccess');
       btn.disabled = true; btn.textContent = 'Ingresando...';
 
       try {
         await login(email, password);
         if (selectedRole === 'admin' && !isAdmin()) throw new Error('Esta cuenta no tiene permisos de administrador.');
 
-        if (isAdmin()) window.location.href = 'admin.html';
-        else window.location.href = 'dashboard.html';
+        toastSuccess('Inicio de sesión exitoso');
+        setTimeout(() => {
+          if (isAdmin()) window.location.href = 'admin.html';
+          else window.location.href = 'dashboard.html';
+        }, 200);
       } catch (err) {
-        errorEl.textContent = err.message;
-        show(errorEl);
+        toastError(err.message);
       } finally {
         btn.disabled = false; btn.textContent = 'Iniciar sesión';
       }
@@ -156,27 +149,22 @@
       const email = $('#regEmail').value.trim();
       const password = $('#regPassword').value;
       const secret = $('#regSecret').value.trim();
-      const errorEl = $('#regError');
       const btn = $('#registerBtn');
 
-      hide(errorEl);
       btn.disabled = true; btn.textContent = 'Creando cuenta...';
 
       try {
         let role = 'user';
         if (selectedRole === 'admin') {
-          if (secret !== ADMIN_SECRET) throw new Error('❌ Código secreto de administrador incorrecto.');
+          if (secret !== ADMIN_SECRET) throw new Error('Código secreto de administrador incorrecto.');
           role = 'admin';
         }
         await register(email, password, name, role, secret);
 
-        const successEl = $('#authSuccess');
-        successEl.innerHTML = '✅ Cuenta creada con éxito. <strong>Ya puedes iniciar sesión.</strong>';
-        show(successEl);
+        toastSuccess('Cuenta creada con éxito. Ya puedes iniciar sesión.');
         showLogin();
       } catch (err) {
-        errorEl.textContent = err.message;
-        show(errorEl);
+        toastError(err.message);
       } finally {
         btn.disabled = false; btn.textContent = 'Crear cuenta';
       }

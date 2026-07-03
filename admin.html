@@ -111,7 +111,7 @@
               <p style="font-size:0.8rem;">o arrastra y suelta aquí</p>
             </div>
             <input type="file" id="importFile" accept=".json,.csv" style="display:none" onchange="handleImportFile(this.files[0])">
-            <div id="importResult" class="hidden mt-4"></div>
+            </div>
           </div>
         </div>
       </main>
@@ -233,7 +233,7 @@
         }
       } catch (err) {
         console.error(err);
-        alert('Error al cargar: ' + err.message);
+        toastError('Error al cargar: ' + err.message);
       } finally {
         toggleLoading(false);
         show('#adminContent');
@@ -249,12 +249,9 @@
     };
 
     async function handleImportFile(file) {
-      const resultEl = $('#importResult');
-      hide(resultEl);
       try {
         const count = await handleImport(file);
-        resultEl.innerHTML = `<div class="auth-success" style="display:block;">✅ ${count} preguntas importadas correctamente.</div>`;
-        show(resultEl);
+        toastSuccess(count + ' preguntas importadas correctamente.');
         await loadCategories();
         renderCategorySelect();
         if (adminState.currentCategoryId) {
@@ -262,8 +259,7 @@
           renderQuestions(allQuestions);
         }
       } catch (err) {
-        resultEl.innerHTML = `<div class="auth-error" style="display:block;">❌ ${err.message}</div>`;
-        show(resultEl);
+        toastError(err.message);
       }
     }
 
