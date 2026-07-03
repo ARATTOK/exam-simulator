@@ -122,6 +122,9 @@ async function startNextCycle() {
 }
 
 async function finishExam() {
+  const flaggedIds = Object.keys(examState.flagged || {});
+  const flaggedQuestions = examState.allQuestions.filter(q => flaggedIds.includes(q.id.toString()));
+  
   examState.completed = true;
   examState.elapsedSeconds = Math.floor((Date.now() - examState.startTime) / 1000);
   const percentage = examState.totalQuestions > 0 ? Math.round((examState.score / examState.totalQuestions) * 100) : 0;
@@ -144,6 +147,7 @@ async function finishExam() {
     time: examState.elapsedSeconds,
     mode: examState.mode,
     sessionId: examState.sessionId,
+    flagged: flaggedQuestions,
   };
 }
 

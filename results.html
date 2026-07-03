@@ -49,9 +49,10 @@
         </div>
       </div>
 
-      <div style="text-align:center;margin-bottom:24px;">
+      <div style="text-align:center;margin-bottom:24px;display:flex;gap:12px;justify-content:center;">
         <a href="dashboard.html" class="btn btn-primary">📋 Ir al dashboard</a>
         <button class="btn btn-secondary" onclick="window.location.href='dashboard.html'" id="retryBtn" style="display:none;">🔄 Reintentar</button>
+        <button class="btn btn-secondary hidden" id="reviewBtn" onclick="reviewFlagged()">🏴 Revisar preguntas</button>
       </div>
 
       <div class="card">
@@ -142,6 +143,12 @@
 
       if (score < 100 && total > 0) show('#retryBtn');
 
+      if (result.flagged && result.flagged.length > 0) {
+        show('#reviewBtn');
+        $('#reviewBtn').textContent = '🏴 Revisar (' + result.flagged.length + ')';
+        sessionStorage.setItem('simuexam-review-questions', JSON.stringify(result.flagged));
+      }
+
       $('#resultsDetail').innerHTML = `
         <div style="padding:12px;text-align:center;color:var(--text-secondary);">
           <p style="font-size:1.1rem;margin-bottom:8px;">${result.mode === 'practice' ? '📖 Modo práctica' : '🎯 Modo examen'}</p>
@@ -150,6 +157,13 @@
           <p class="text-sm">Tiempo total: <strong>${formatTime(result.time || 0)}</strong></p>
         </div>
       `;
+    }
+
+    function reviewFlagged() {
+      const flagged = sessionStorage.getItem('simuexam-review-questions');
+      if (!flagged) return;
+      // TODO: Implement navigation to exam mode with only these questions
+      toastInfo('Funcionalidad de revisión en desarrollo.');
     }
 
     checkSession().then(session => {
