@@ -32,6 +32,7 @@
       <aside class="admin-sidebar">
         <button class="admin-sidebar-link active" data-tab="categories" onclick="switchTab('categories')">📂 Categorías</button>
         <button class="admin-sidebar-link" data-tab="exams" onclick="switchTab('exams')">📋 Exámenes</button>
+        <button class="admin-sidebar-link" data-tab="users" onclick="switchTab('users');loadUsers()">👥 Usuarios</button>
       </aside>
 
       <main class="admin-content">
@@ -137,6 +138,22 @@
             </div>
           </div>
         </div>
+
+        <!-- Users tab -->
+        <div class="admin-tab-page hidden" id="tab-users">
+          <div class="admin-header">
+            <h2>👥 Usuarios</h2>
+            <button class="btn btn-primary" onclick="resetUserForm();openModal('#userModal')">+ Nuevo usuario</button>
+          </div>
+          <div class="card">
+            <div class="table-wrap">
+              <table id="usersTable">
+                <thead><tr><th>Email</th><th>Nombre</th><th>Rol</th><th>Creado</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   </div>
@@ -225,6 +242,41 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" onclick="closeModal('#topicModal')">Cancelar</button>
           <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- User Modal -->
+  <div class="modal-overlay" id="userModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="userModalTitle">Nuevo usuario</h3>
+        <button class="modal-close" onclick="closeModal('#userModal')">✕</button>
+      </div>
+      <form onsubmit="event.preventDefault();saveUser()">
+        <div class="form-group">
+          <label class="form-label">Correo electrónico</label>
+          <input class="form-input" id="userEmail" type="email" placeholder="usuario@correo.com" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Contraseña</label>
+          <input class="form-input" id="userPassword" type="password" placeholder="Mín. 6 caracteres" required minlength="6">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nombre</label>
+          <input class="form-input" id="userName" placeholder="Nombre del usuario">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Rol</label>
+          <select class="form-select" id="userRole">
+            <option value="user">Usuario</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('#userModal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Crear usuario</button>
         </div>
       </form>
     </div>

@@ -86,6 +86,48 @@ app.get('/api/auth/me', authenticate, async (req, res) => {
 });
 
 // ==========================================
+// ADMIN: create user accounts
+// ==========================================
+
+app.post('/api/admin/users', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { email, password, displayName, role } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email y contraseña requeridos' });
+
+    const existCheck = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existCheck.rows.length > 0) {
+      return res.status(409).json({ error: 'Ya existe una cuenta con ese email' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const id = uuidv4();
+    const userRole = role === 'admin' ? 'admin' : 'user';
+
+    await pool.query(
+      'INSERT INTO users (id, email, password, display_name, role) VALUES ($1, $2, $3, $4, $5)',
+      [id, email, hashedPassword, displayName || email, userRole]
+    );
+    await pool.query(
+      'INSERT INTO profiles (id, role, display_name) VALUES ($1, $2, $3)',
+      [id, userRole, displayName || email]
+    );
+
+    res.json({ success: true, user: { id, email, role: userRole, display_name: displayName || email } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/admin/users', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, email, role, display_name, created_at FROM users ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
 // CATEGORIES (shared)
 // ==========================================
 

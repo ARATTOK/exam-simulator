@@ -449,6 +449,59 @@ async function uploadImageFile(input) {
 // TAB SYSTEM
 // ==========================================
 
+// ==========================================
+// USERS
+// ==========================================
+
+async function loadUsers() {
+  try {
+    const users = await apiGet('/api/admin/users');
+    const tbody = $('#usersTable tbody');
+    if (!users.length) {
+      html(tbody, '<tr><td colspan="4" class="text-center" style="padding:32px;color:var(--text-muted);">No hay usuarios.</td></tr>');
+      return;
+    }
+    html(tbody, users.map(u => `
+      <tr>
+        <td>${esc(u.email)}</td>
+        <td>${esc(u.display_name || '—')}</td>
+        <td><span class="badge ${u.role === 'admin' ? 'badge-primary' : 'badge-success'}">${u.role}</span></td>
+        <td class="text-muted text-sm">${new Date(u.created_at).toLocaleDateString('es-ES')}</td>
+      </tr>
+    `).join(''));
+  } catch (err) {
+    toastError('Error al cargar usuarios: ' + err.message);
+  }
+}
+
+async function saveUser() {
+  const email = $('#userEmail').value.trim();
+  const password = $('#userPassword').value;
+  const displayName = $('#userName').value.trim();
+  const role = $('#userRole').value;
+  if (!email || !password) return toastError('Email y contraseña requeridos');
+
+  try {
+    await apiPost('/api/admin/users', { email, password, displayName, role });
+    closeModal('#userModal');
+    toastSuccess('Usuario creado correctamente');
+    loadUsers();
+  } catch (err) {
+    toastError(err.message);
+  }
+}
+
+function resetUserForm() {
+  $('#userEmail').value = '';
+  $('#userPassword').value = '';
+  $('#userName').value = '';
+  $('#userRole').value = 'user';
+}
+
+// ==========================================
+// TABS
+// ==========================================
+
 function switchTab(tab) {
   $$('.admin-sidebar-link').forEach(l => l.classList.toggle('active', l.dataset.tab === tab));
   $$('.admin-tab-page').forEach(p => p.classList.toggle('hidden', p.id !== 'tab-' + tab));
