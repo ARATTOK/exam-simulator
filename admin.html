@@ -16,7 +16,7 @@
       <div class="nav-links">
         <button class="nav-link" id="themeToggle" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
         <span class="nav-link user-info" id="userDisplay">👤 admin</span>
-        <a href="dashboard.html" class="nav-link">Ver como usuario</a>
+        <a href="dashboard.html" class="nav-link">📊 Dashboard</a>
         <button class="nav-link logout" onclick="logout()">Cerrar sesión</button>
       </div>
     </div>
@@ -30,9 +30,16 @@
   <div id="adminContent" class="hidden">
     <div class="admin-layout">
       <aside class="admin-sidebar">
-        <button class="admin-sidebar-link active" data-tab="categories" onclick="switchTab('categories')">📂 Categorías</button>
-        <button class="admin-sidebar-link" data-tab="exams" onclick="switchTab('exams')">📋 Exámenes</button>
-        <button class="admin-sidebar-link" data-tab="users" onclick="switchTab('users');loadUsers()">👥 Usuarios</button>
+        <div class="admin-sidebar-section">Gestión</div>
+        <button class="admin-sidebar-link active" data-tab="categories" onclick="switchTab('categories')">
+          <span class="admin-sidebar-icon">📂</span> Categorías
+        </button>
+        <button class="admin-sidebar-link" data-tab="exams" onclick="switchTab('exams')">
+          <span class="admin-sidebar-icon">📋</span> Exámenes
+        </button>
+        <button class="admin-sidebar-link" data-tab="users" onclick="switchTab('users');loadUsers()">
+          <span class="admin-sidebar-icon">👥</span> Usuarios
+        </button>
       </aside>
 
       <main class="admin-content">
@@ -345,12 +352,12 @@
       try {
         await loadCategories();
         renderCategories();
+        populateExamCategorySelect();
         await loadExams();
         renderExams();
-        populateExamCategorySelect();
       } catch (err) {
         console.error(err);
-        toastError('Error al cargar: ' + err.message);
+        toastError('Error al cargar datos: ' + err.message);
       } finally {
         toggleLoading(false);
         show('#adminContent');

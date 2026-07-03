@@ -868,18 +868,54 @@ input[type="checkbox"], input[type="radio"] {
 
 @media (max-width: 768px) {
   .admin-layout { grid-template-columns: 1fr; }
+  .admin-sidebar {
+    display: flex;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 0;
+    min-width: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .admin-sidebar-section { display: none; }
+  .admin-sidebar-link {
+    flex: 1 0 auto;
+    justify-content: center;
+    padding: 14px 16px;
+    border-right: none;
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+    font-size: 0.82rem;
+  }
+  .admin-sidebar-link.active {
+    border-right: none;
+    border-bottom-color: var(--primary);
+  }
+  .admin-sidebar-icon { display: none; }
 }
 
 .admin-sidebar {
   background: var(--surface);
   border-right: 1px solid var(--border);
-  padding: 16px 0;
+  padding: 12px 0;
+  min-width: 200px;
+}
+
+.admin-sidebar-section {
+  padding: 16px 20px 6px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
 }
 
 .admin-sidebar-link {
-  display: block;
-  padding: 12px 24px;
-  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  font-size: 0.88rem;
   font-weight: 500;
   color: var(--text-secondary);
   cursor: pointer;
@@ -889,6 +925,7 @@ input[type="checkbox"], input[type="radio"] {
   width: 100%;
   text-align: left;
   font-family: var(--font);
+  border-right: 3px solid transparent;
 }
 
 .admin-sidebar-link:hover {
@@ -899,16 +936,24 @@ input[type="checkbox"], input[type="radio"] {
   background: var(--primary-light);
   color: var(--primary);
   font-weight: 600;
-  border-right: 3px solid var(--primary);
+  border-right-color: var(--primary);
 }
 
-.admin-content { padding: 28px; }
+.admin-sidebar-icon {
+  width: 22px;
+  text-align: center;
+  font-size: 1rem;
+}
+
+.admin-content { padding: 28px; min-width: 0; }
 
 .admin-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 .admin-header h2 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
 
