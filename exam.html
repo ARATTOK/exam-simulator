@@ -218,12 +218,19 @@
         return;
       }
 
-      if (result && result.nextCycle) {
-        $('#nextBtn').textContent = '🔄 Siguiente ronda (Ronda ' + result.cycleNumber + ')';
+      if (examState.mode === 'exam') {
+        if (result && result.nextCycle) {
+          $('#nextBtn').textContent = '🔄 Siguiente ronda (Ronda ' + result.cycleNumber + ')';
+        } else {
+          $('#nextBtn').textContent = 'Siguiente →';
+        }
+        show('#nextBtn');
+      } else {
+        if (result && result.nextCycle) {
+          $('#nextBtn').textContent = '🔄 Siguiente ronda (Ronda ' + result.cycleNumber + ')';
+        }
+        show('#nextBtn');
       }
-
-      show('#nextBtn');
-      if (examState.mode === 'exam') setTimeout(function() { nextQuestion(); }, 800);
     }
 
     function nextQuestion() { awaitingNext = false; renderQuestion(); }
@@ -256,9 +263,12 @@
         var labels = $$('#optionsContainer .radio-label');
         if (labels[idx]) { labels[idx].click(); e.preventDefault(); }
       }
-      if (e.key === 'Enter' && !$('#submitBtn').disabled) { handleSubmit(); e.preventDefault(); }
-      if (e.key === 'ArrowRight' || e.key === 'n') {
-        if (!$('#nextBtn').classList.contains('hidden')) { nextQuestion(); e.preventDefault(); }
+      if (e.key === 'Enter') {
+        if (!$('#submitBtn').disabled) { handleSubmit(); e.preventDefault(); }
+        else if (!$('#nextBtn').classList.contains('hidden')) { nextQuestion(); e.preventDefault(); }
+      }
+      if ((e.key === 'ArrowRight' || e.key === 'n') && !$('#nextBtn').classList.contains('hidden')) {
+        nextQuestion(); e.preventDefault();
       }
     });
 
