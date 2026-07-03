@@ -494,6 +494,13 @@ app.post('/api/upload', authenticate, requireAdmin, upload.single('file'), (req,
 // ==========================================
 
 async function runMigration() {
+  // Skip if migration already completed
+  const existingDefs = await pool.query('SELECT COUNT(*) FROM exam_definitions');
+  if (parseInt(existingDefs.rows[0].count) > 0) {
+    console.log('⏭️  Migration already completed, skipping');
+    return;
+  }
+
   // Check if legacy tables exist and have data
   const legacyCheck = await pool.query(`
     SELECT EXISTS (

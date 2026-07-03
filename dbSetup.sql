@@ -103,3 +103,9 @@ CREATE INDEX IF NOT EXISTS idx_exam_options_question ON exam_question_options(ex
 CREATE INDEX IF NOT EXISTS idx_exam_sessions_user ON exam_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_exam_sessions_definition ON exam_sessions(exam_definition_id);
 CREATE INDEX IF NOT EXISTS idx_session_answers_session ON session_answers(session_id);
+
+-- Limpiar tablas legacy (schema v1)
+DROP TABLE IF EXISTS answers CASCADE;
+DROP TABLE IF EXISTS questions CASCADE;
+DROP TABLE IF EXISTS topics CASCADE;
+DROP TABLE IF EXISTS exams CASCADE;
