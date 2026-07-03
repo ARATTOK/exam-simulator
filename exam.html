@@ -103,7 +103,7 @@
 
       const totalInCycle = examState.currentCycle.length;
       const qNum = examState.cycleIndex + 1;
-      $('#questionNumber').textContent = `Pregunta ${qNum} de ${totalInCycle}`;
+      $('#questionNumber').textContent = 'Pregunta ' + qNum + ' de ' + totalInCycle;
 
       const isMulti = isMultipleCorrect(q);
       const inputType = isMulti ? 'checkbox' : 'radio';
@@ -113,16 +113,22 @@
 
       const imgContainer = $('#questionImageContainer');
       imgContainer.innerHTML = q.image_url
-        ? `<img class="question-image" src="${esc(q.image_url)}" alt="Imagen de la pregunta" loading="lazy">`
+        ? '<img class="question-image" src="' + esc(q.image_url) + '" alt="Imagen de la pregunta" loading="lazy">'
         : '';
 
-      const container = $('#optionsContainer');
-      container.innerHTML = q.options.map(o => `
-        <label class="radio-label" onclick="onOptionClick(this, '${inputType}')">
-          <input type="${inputType}" name="${groupName}" value="${o.id}" onchange="updateSubmitBtn()">
-          <span>${esc(o.text)}</span>
-        </label>
-      `).join('');
+      var badge = isMulti
+        ? '<span class="badge badge-multi">Selección múltiple</span>'
+        : '<span class="badge badge-single">Una respuesta</span>';
+
+      var container = $('#optionsContainer');
+      container.innerHTML = '<div class="options-header">' + badge + '</div>'
+        + q.options.map(function(o) {
+          return '<div class="radio-label" data-opt-id="' + o.id + '" onclick="onOptionClick(this,\'' + inputType + '\',\'' + groupName + '\')">'
+            + '<input type="' + inputType + '" name="' + groupName + '" value="' + o.id + '" aria-label="' + esc(o.text) + '">'
+            + '<span class="option-indicator"></span>'
+            + '<span class="option-text">' + esc(o.text) + '</span>'
+            + '</div>';
+        }).join('');
 
       hide('#nextBtn'); hide('#finishBtn'); hide('#feedbackContainer');
       show('#submitBtn');
@@ -130,89 +136,111 @@
       updateProgress();
     }
 
-    function onOptionClick(labelEl, type) {
+    function onOptionClick(labelEl, type, groupName) {
       if (awaitingNext) return;
-      const input = labelEl.querySelector('input');
+      var input = labelEl.querySelector('input');
       if (type === 'radio') {
-        labelEl.closest('#optionsContainer').querySelectorAll('.radio-label').forEach(l => l.classList.remove('selected'));
+        var container = labelEl.closest('#optionsContainer');
+        var allLabels = container.querySelectorAll('.radio-label');
+        for (var i = 0; i < allLabels.length; i++) allLabels[i].classList.remove('selected');
         labelEl.classList.add('selected');
         input.checked = true;
       } else {
         input.checked = !input.checked;
-        labelEl.classList.toggle('selected', input.checked);
+        if (input.checked) {
+          labelEl.classList.add('selected');
+        } else {
+          labelEl.classList.remove('selected');
+        }
       }
       updateSubmitBtn();
     }
 
     function updateSubmitBtn() {
-      $('#submitBtn').disabled = $$('#optionsContainer input:checked').length === 0;
+      var checked = $$('#optionsContainer input:checked');
+      $('#submitBtn').disabled = checked.length === 0;
     }
 
     async function handleSubmit() {
       if (awaitingNext) return;
-      const checked = $$('#optionsContainer input:checked');
+      var checked = $$('#optionsContainer input:checked');
       if (checked.length === 0) return;
-      submittedOptionIds = checked.map(c => c.value);
+      submittedOptionIds = [];
+      for (var i = 0; i < checked.length; i++) submittedOptionIds.push(checked[i].value);
 
-      $$('#optionsContainer input').forEach(i => i.disabled = true);
+      var inputs = $$('#optionsContainer input');
+      for (var i = 0; i < inputs.length; i++) inputs[i].disabled = true;
 
-      const q = examState.currentCycle[examState.cycleIndex];
-      const correctIds = (q.options || []).filter(o => o.is_correct).map(o => o.id);
-      const isCorrect = arraysEqual(submittedOptionIds.sort(), correctIds.sort());
+      var q = examState.currentCycle[examState.cycleIndex];
+      var correctIds = [];
+      if (q.options) {
+        for (var i = 0; i < q.options.length; i++) {
+          if (q.options[i].is_correct) correctIds.push(q.options[i].id);
+        }
+      }
+      var sortedSubmitted = submittedOptionIds.slice().sort();
+      var sortedCorrect = correctIds.slice().sort();
+      var isCorrect = arraysEqual(sortedSubmitted, sortedCorrect);
 
-      $$('#optionsContainer .radio-label').forEach(label => {
-        const input = label.querySelector('input');
-        const isOptCorrect = correctIds.includes(input.value);
-        if (input.checked) label.classList.add(isOptCorrect ? 'correct' : 'incorrect');
-        else if (isOptCorrect) label.classList.add('correct');
-      });
+      var labels = $$('#optionsContainer .radio-label');
+      for (var i = 0; i < labels.length; i++) {
+        var input = labels[i].querySelector('input');
+        var isOptCorrect = correctIds.indexOf(input.value) !== -1;
+        if (input.checked) labels[i].classList.add(isOptCorrect ? 'correct' : 'incorrect');
+        else if (isOptCorrect) labels[i].classList.add('correct');
+      }
 
       if (examState.mode === 'practice') {
-        const fb = $('#feedbackContainer');
+        var fb = $('#feedbackContainer');
         if (isCorrect) {
-          fb.innerHTML = `<div class="feedback-box correct">✅ ¡Correcto!${q.explanation ? `<div class="explanation">${esc(q.explanation)}</div>` : ''}</div>`;
+          fb.innerHTML = '<div class="feedback-box correct">✅ ¡Correcto!' + (q.explanation ? '<div class="explanation">' + esc(q.explanation) + '</div>' : '') + '</div>';
         } else {
-          const correctText = q.options.filter(o => o.is_correct).map(o => o.text).join(', ');
-          fb.innerHTML = `<div class="feedback-box incorrect">❌ Incorrecto.${q.explanation ? `<div class="explanation">${esc(q.explanation)}</div>` : `<div class="explanation">Respuesta correcta: <strong>${esc(correctText)}</strong></div>`}</div>`;
+          var correctText = [];
+          if (q.options) {
+            for (var i = 0; i < q.options.length; i++) {
+              if (q.options[i].is_correct) correctText.push(q.options[i].text);
+            }
+          }
+          fb.innerHTML = '<div class="feedback-box incorrect">❌ Incorrecto.' + (q.explanation ? '<div class="explanation">' + esc(q.explanation) + '</div>' : '<div class="explanation">Respuesta correcta: <strong>' + esc(correctText.join(', ')) + '</strong></div>') + '</div>';
         }
         show(fb);
       }
 
       awaitingNext = true;
       hide('#submitBtn');
-      const result = await submitAnswer(submittedOptionIds);
+      var result = await submitAnswer(submittedOptionIds);
 
       if (result && result.done) {
         $('#examActions').innerHTML = '';
         show('#finishBtn');
-        $('#finishBtn').textContent = `🎉 Ver resultados (${result.score}%)`;
+        $('#finishBtn').textContent = '🎉 Ver resultados (' + result.score + '%)';
         stopTimer();
         return;
       }
 
       if (result && result.nextCycle) {
-        $('#nextBtn').textContent = `🔄 Siguiente ronda (Ronda ${result.cycleNumber})`;
+        $('#nextBtn').textContent = '🔄 Siguiente ronda (Ronda ' + result.cycleNumber + ')';
       }
 
       show('#nextBtn');
-      if (examState.mode === 'exam') setTimeout(() => nextQuestion(), 800);
+      if (examState.mode === 'exam') setTimeout(function() { nextQuestion(); }, 800);
     }
 
     function nextQuestion() { awaitingNext = false; renderQuestion(); }
 
     async function handleFinish() {
       stopTimer();
-      const result = await finishExam();
+      var result = await finishExam();
       sessionStorage.setItem('simuexam-last-result', JSON.stringify(result));
       window.location.href = 'results.html';
     }
 
     function updateProgress() {
       if (!examState) return;
-      const pct = examState.totalQuestions > 0 ? Math.round((examState.mastered.size / examState.totalQuestions) * 100) : 0;
+      var pct = examState.totalQuestions > 0 ? Math.round((examState.mastered.size / examState.totalQuestions) * 100) : 0;
       $('#progressFill').style.width = pct + '%';
-      $('#progressLabel').textContent = `${examState.mastered.size}/${examState.totalQuestions} dominadas`;
-      $('#cycleInfo').textContent = `Ronda ${examState.cycleNumber} · ${examState.mode === 'practice' ? '📖 Práctica' : '🎯 Examen'}`;
+      $('#progressLabel').textContent = examState.mastered.size + '/' + examState.totalQuestions + ' dominadas';
+      $('#cycleInfo').textContent = 'Ronda ' + examState.cycleNumber + ' · ' + (examState.mode === 'practice' ? '📖 Práctica' : '🎯 Examen');
     }
 
     function updateTimer(seconds) { $('#timerDisplay').textContent = '⏱ ' + formatTime(seconds); }
@@ -221,18 +249,20 @@
 
     function exitExam() { clearExamState(); stopTimer(); window.location.href = 'dashboard.html'; }
 
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', function(e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.key >= '1' && e.key <= '9') {
-        const idx = parseInt(e.key) - 1;
-        const labels = $$('#optionsContainer .radio-label');
-        if (labels[idx]) labels[idx].click();
+        var idx = parseInt(e.key) - 1;
+        var labels = $$('#optionsContainer .radio-label');
+        if (labels[idx]) { labels[idx].click(); e.preventDefault(); }
       }
-      if (e.key === 'Enter' && !$('#submitBtn').disabled) handleSubmit();
-      if (e.key === 'ArrowRight' || e.key === 'n') { if (!$('#nextBtn').classList.contains('hidden')) nextQuestion(); }
+      if (e.key === 'Enter' && !$('#submitBtn').disabled) { handleSubmit(); e.preventDefault(); }
+      if (e.key === 'ArrowRight' || e.key === 'n') {
+        if (!$('#nextBtn').classList.contains('hidden')) { nextQuestion(); e.preventDefault(); }
+      }
     });
 
-    checkSession().then(session => {
+    checkSession().then(function(session) {
       if (!session) { window.location.href = 'index.html'; return; }
       $('#userDisplay').textContent = '👤 ' + (session.user?.email || 'usuario');
       initExamPage();

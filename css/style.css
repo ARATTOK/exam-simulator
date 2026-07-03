@@ -363,27 +363,34 @@ a:hover { text-decoration: underline; }
 
 .checkbox-group, .radio-group { display: flex; flex-direction: column; gap: 10px; }
 
-.checkbox-label, .radio-label {
+.radio-label {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 8px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
   cursor: pointer;
-  transition: var(--transition);
-  font-size: 0.9rem;
+  transition: all 0.15s ease;
+  font-size: 0.92rem;
   background: var(--surface);
+  position: relative;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.radio-label:hover, .checkbox-label:hover {
+.radio-label:last-child { margin-bottom: 0; }
+
+.radio-label:hover {
   border-color: var(--primary);
   background: var(--primary-light);
 }
 
-.radio-label:has(input:checked), .checkbox-label:has(input:checked) {
+.radio-label.selected {
   border-color: var(--primary);
   background: var(--primary-light);
+  box-shadow: 0 0 0 1px var(--primary);
 }
 
 .radio-label.correct {
@@ -395,10 +402,127 @@ a:hover { text-decoration: underline; }
   background: var(--error-light);
 }
 
-input[type="checkbox"], input[type="radio"] {
-  width: 18px; height: 18px; margin-top: 3px;
-  cursor: pointer;
-  accent-color: var(--primary);
+.radio-label input[type="radio"],
+.radio-label input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.option-indicator {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--text-muted);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.radio-label input[type="checkbox"] ~ .option-indicator {
+  border-radius: 4px;
+}
+
+.radio-label.selected .option-indicator {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+
+.radio-label.selected .option-indicator::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: white;
+}
+
+.radio-label.selected input[type="checkbox"] ~ .option-indicator::after {
+  border-radius: 0;
+  width: 6px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  background: transparent;
+}
+
+.radio-label.correct .option-indicator {
+  border-color: var(--success);
+  background: var(--success);
+}
+
+.radio-label.correct .option-indicator::after {
+  content: '';
+  width: 6px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  background: transparent;
+  border-radius: 0;
+}
+
+.radio-label.incorrect .option-indicator {
+  border-color: var(--error);
+  background: var(--error);
+}
+
+.radio-label.incorrect .option-indicator::after {
+  content: '✕';
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  background: transparent;
+  border: none;
+  width: auto;
+  height: auto;
+}
+
+.option-text {
+  flex: 1;
+  line-height: 1.5;
+}
+
+.options-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.badge-single, .badge-multi {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.badge-single {
+  background: #e8f4fd;
+  color: #1a73e8;
+}
+
+.badge-multi {
+  background: #f3e8fd;
+  color: #7c3aed;
+}
+
+[data-theme="dark"] .badge-single {
+  background: rgba(26, 115, 232, 0.15);
+  color: #7fc7ff;
+}
+
+[data-theme="dark"] .badge-multi {
+  background: rgba(124, 58, 237, 0.15);
+  color: #b794f4;
 }
 
 /* ==========================================
@@ -1322,7 +1446,8 @@ tr.selected td { background: var(--primary-light); }
   .admin-layout { grid-template-columns: 1fr; }
   .exam-container { padding: 16px 12px 32px; }
   .question-text { font-size: 1.05rem; }
-  .radio-label { padding: 14px 14px; font-size: 0.88rem; }
+  .radio-label { padding: 14px 16px; font-size: 0.88rem; min-height: 48px; }
+  .option-indicator { width: 20px; height: 20px; min-width: 20px; }
   .question-image { max-height: 200px; }
   .exam-actions { flex-direction: column; }
   .exam-actions .btn { width: 100%; }
@@ -1333,7 +1458,8 @@ tr.selected td { background: var(--primary-light); }
 @media (max-width: 480px) {
   .question-card { padding: 18px 14px; }
   .question-text { font-size: 1rem; }
-  .radio-label { padding: 16px 14px; font-size: 0.9rem; min-height: 48px; }
+  .radio-label { padding: 16px 14px; font-size: 0.92rem; min-height: 48px; }
+  .option-indicator { width: 24px; height: 24px; min-width: 24px; }
   .exam-progress { flex-wrap: wrap; gap: 6px; padding: 12px 16px; }
   .exam-actions { flex-direction: column; }
   .exam-actions .btn { width: 100%; }
