@@ -39,7 +39,10 @@
       <div class="text-sm text-muted mb-4 text-center" id="cycleInfo">Ronda 1</div>
 
       <div class="question-card" id="questionCard">
-        <div class="question-number" id="questionNumber">Pregunta 1</div>
+        <div class="q-header">
+          <div class="question-number" id="questionNumber">Pregunta 1</div>
+          <button class="flag-btn" id="flagBtn" onclick="toggleFlag()" title="Marcar para revisar">🏴</button>
+        </div>
         <div class="question-text" id="questionText">Cargando pregunta...</div>
         <div id="questionImageContainer"></div>
         <div id="optionsContainer" class="mt-4"></div>
@@ -50,6 +53,7 @@
           <button class="btn btn-success hidden" id="finishBtn" onclick="handleFinish()">Ver resultados 🎉</button>
         </div>
       </div>
+      <div class="flag-summary" id="flagSummary"></div>
 
       <div id="exitConfirm" class="hidden" style="text-align:center;margin-top:16px;">
         <div class="card" style="max-width:400px;margin:0 auto;">
@@ -81,12 +85,50 @@
         return;
       }
       examState = saved;
+      if (!examState.flagged) examState.flagged = {};
       show('#examContent');
       startTimer(updateTimer);
       updateTimer(examState.elapsedSeconds);
       updateProgress();
       renderQuestion();
       toggleLoading(false);
+    }
+
+    function toggleFlag() {
+      if (!examState) return;
+      var q = examState.currentCycle[examState.cycleIndex];
+      if (!q) return;
+      if (!examState.flagged) examState.flagged = {};
+      if (examState.flagged[q.id]) {
+        delete examState.flagged[q.id];
+      } else {
+        examState.flagged[q.id] = true;
+      }
+      saveExamState();
+      updateFlagState();
+    }
+
+    function updateFlagState() {
+      if (!examState) return;
+      var q = examState.currentCycle[examState.cycleIndex];
+      var btn = $('#flagBtn');
+      if (!q || !btn) return;
+      if (examState.flagged && examState.flagged[q.id]) {
+        btn.classList.add('flagged');
+        btn.textContent = '🏴';
+      } else {
+        btn.classList.remove('flagged');
+        btn.textContent = '🏴';
+      }
+      var flaggedCount = examState.flagged ? Object.keys(examState.flagged).length : 0;
+      var summary = $('#flagSummary');
+      if (flaggedCount > 0) {
+        summary.textContent = '🏴 ' + flaggedCount + ' pregunta' + (flaggedCount > 1 ? 's' : '') + ' marcada' + (flaggedCount > 1 ? 's' : '');
+        summary.classList.add('has-flags');
+      } else {
+        summary.textContent = '';
+        summary.classList.remove('has-flags');
+      }
     }
 
     function renderQuestion() {
@@ -133,6 +175,7 @@
       hide('#nextBtn'); hide('#finishBtn'); hide('#feedbackContainer');
       show('#submitBtn');
       $('#submitBtn').disabled = true;
+      updateFlagState();
       updateProgress();
     }
 

@@ -30,6 +30,7 @@ async function initExam(examDefinitionId, mode, questionCount) {
     startTime: Date.now(),
     elapsedSeconds: 0,
     completed: false,
+    flagged: {},
   };
 
   saveExamState();
