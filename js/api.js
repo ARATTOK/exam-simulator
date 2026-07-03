@@ -3,7 +3,7 @@
    ============================================ */
 
 // ⚠️ CONFIGURA AQUÍ LA URL DE TU BACKEND
-const API_URL = 'http://localhost:3001';
+const API_URL = 'https://exam-simulator-d1kr.onrender.com';
 
 let apiToken = null;
 
