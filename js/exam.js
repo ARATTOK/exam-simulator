@@ -125,7 +125,7 @@ async function submitAnswer(selectedOptionIds) {
 }
 
 async function startNextCycle() {
-  const pending = examState.allQuestions.filter(q => !examState.mastered.has(q.id));
+  const pending = examState.allQuestions.filter(q => !examState.mastered.has(q.id) && !examState.failed.has(q.id));
   if (pending.length === 0) return await finishExam();
 
   examState.cycleNumber++;
