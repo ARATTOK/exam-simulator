@@ -88,12 +88,12 @@
     <div class="modal" style="max-width:400px;">
       <div class="modal-header">
         <h3>¿Salir del examen?</h3>
-        <button class="modal-close" onclick="hide('#exitModal');show('#questionCard')"><i data-lucide="x"></i></button>
+          <button class="modal-close" onclick="$('#exitModal').classList.remove('open')"><i data-lucide="x"></i></button>
       </div>
       <p style="margin-bottom:8px;color:var(--text-secondary);">Tu progreso se perderá.</p>
       <div id="exitModalProgress" style="margin-bottom:16px;"></div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="hide('#exitModal');show('#questionCard')">Continuar examen</button>
+          <button class="btn btn-secondary" onclick="$('#exitModal').classList.remove('open')">Continuar examen</button>
         <button class="btn btn-danger" onclick="exitExam()">Salir</button>
       </div>
     </div>
@@ -411,7 +411,9 @@
     function confirmExit() {
       var progress = examState ? examState.mastered.size + '/' + examState.totalQuestions + ' preguntas dominadas' : '';
       $('#exitModalProgress').textContent = progress;
-      show('#exitModal');
+      var modal = $('#exitModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('open');
       initIcons();
     }
 
