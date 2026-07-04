@@ -343,7 +343,12 @@ a:hover { text-decoration: underline; }
   background: rgba(255, 255, 255, 0.95);
 }
 
-.form-input.error { border-color: var(--error); box-shadow: 0 0 0 4px var(--error-light); }
+.form-input:disabled,
+.form-select:disabled,
+.form-textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 .form-textarea { min-height: 90px; resize: vertical; }
 .form-hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }

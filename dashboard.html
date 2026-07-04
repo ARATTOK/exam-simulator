@@ -82,7 +82,7 @@
                 <label class="form-label" for="questionCount">Cantidad de preguntas</label>
                 <div class="flex gap-2 items-center">
                   <input class="form-input" id="questionCount" type="number" min="1" value="10" style="max-width:120px;">
-                  <button class="btn btn-sm btn-secondary" onclick="setAllQuestions()" title="Seleccionar todas">Todas</button>
+                  <button class="btn btn-sm btn-secondary" id="allQuestionsBtn" onclick="setAllQuestions()" title="Seleccionar todas">Todas</button>
                 </div>
                 <span class="form-hint" id="maxQuestionsHint">Máximo: —</span>
               </div>
@@ -191,6 +191,7 @@
         examTopics = [];
         hide('#topicSelection');
       }
+      updateQuestionUI();
 
       show('#examConfigReady');
       hide('#examConfig');
@@ -216,22 +217,26 @@
         selectedTopicIds.add(topicId);
       }
       renderTopics();
-      // Update max questions based on selected topics
-      updateQuestionCount();
+      updateQuestionUI();
     }
 
-    function updateQuestionCount() {
-      var total = 0;
+    function updateQuestionUI() {
       if (selectedTopicIds.size > 0) {
+        var total = 0;
         examTopics.forEach(function(t) {
           if (selectedTopicIds.has(t.id)) total += (t.question_count || 0);
         });
+        $('#questionCount').value = total;
+        $('#questionCount').disabled = true;
+        $('#maxQuestionsHint').textContent = total + ' preguntas de ' + selectedTopicIds.size + ' tema(s) (todas)';
+        $('#allQuestionsBtn').style.display = 'none';
       } else {
-        total = examQuestionCount;
+        $('#questionCount').disabled = false;
+        $('#maxQuestionsHint').textContent = 'Máximo: ' + examQuestionCount;
+        $('#allQuestionsBtn').style.display = '';
+        var cur = parseInt($('#questionCount').value);
+        if (!cur || cur > examQuestionCount) $('#questionCount').value = Math.min(10, examQuestionCount || 1);
       }
-      $('#maxQuestionsHint').textContent = 'Máximo: ' + total;
-      var current = parseInt($('#questionCount').value) || total;
-      if (current > total) $('#questionCount').value = total;
     }
 
     function selectMode(mode) {
@@ -252,11 +257,21 @@
 
     async function startExam() {
       if (!selectedExamId) return toastError('Selecciona un examen');
-      const count = parseInt($('#questionCount').value) || examQuestionCount;
-      if (count < 1 || count > examQuestionCount) return toastError('Elige entre 1 y ' + examQuestionCount + ' preguntas.');
+      var topicIds = selectedTopicIds.size > 0 ? Array.from(selectedTopicIds) : [];
+      
+      var count;
+      if (topicIds.length > 0) {
+        // When topics are selected, use ALL questions from those topics
+        count = 0;
+        examTopics.forEach(function(t) {
+          if (selectedTopicIds.has(t.id)) count += (t.question_count || 0);
+        });
+      } else {
+        count = parseInt($('#questionCount').value) || examQuestionCount;
+        if (count < 1 || count > examQuestionCount) return toastError('Elige entre 1 y ' + examQuestionCount + ' preguntas.');
+      }
 
       try {
-        var topicIds = selectedTopicIds.size > 0 ? Array.from(selectedTopicIds) : [];
         await initExam(selectedExamId, selectedMode, count, topicIds);
         window.location.href = 'exam.html';
       } catch (err) {
