@@ -15,6 +15,7 @@
       </a>
       <div class="nav-links">
         <button class="nav-link" id="themeToggle" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
+        <button class="nav-link" id="fullscreenBtn" onclick="toggleFullscreen()" title="Pantalla completa">⛶</button>
         <span class="nav-link user-info" id="userDisplay">👤 usuario</span>
         <button class="nav-link logout" onclick="confirmExit()">Salir</button>
       </div>
@@ -312,6 +313,30 @@
     function confirmExit() { hide('#questionCard'); show('#exitConfirm'); }
 
     function exitExam() { clearExamState(); stopTimer(); window.location.href = 'dashboard.html'; }
+
+    function toggleFullscreen() {
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      } else {
+        var el = document.documentElement;
+        if (el.requestFullscreen) el.requestFullscreen();
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      }
+    }
+
+    document.addEventListener('fullscreenchange', updateFullscreenBtn);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenBtn);
+    function updateFullscreenBtn() {
+      var btn = $('#fullscreenBtn');
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        btn.textContent = '⛶';
+        btn.title = 'Salir de pantalla completa';
+      } else {
+        btn.textContent = '⛶';
+        btn.title = 'Pantalla completa';
+      }
+    }
 
     document.addEventListener('keydown', function(e) {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;

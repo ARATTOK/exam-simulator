@@ -3,8 +3,8 @@ let examState = null;
 let examTimerInterval = null;
 let currentQuestionData = null;
 
-async function initExam(examDefinitionId, mode, questionCount) {
-  const questions = await loadExamQuestions(examDefinitionId);
+async function initExam(examDefinitionId, mode, questionCount, topicIds) {
+  const questions = await loadExamQuestions(examDefinitionId, topicIds);
   if (!questions || questions.length === 0) throw new Error('No hay preguntas disponibles para este examen.');
 
   const count = questionCount && questionCount < questions.length ? questionCount : questions.length;
@@ -37,10 +37,14 @@ async function initExam(examDefinitionId, mode, questionCount) {
   return examState;
 }
 
-async function loadExamQuestions(examDefinitionId) {
+async function loadExamQuestions(examDefinitionId, topicIds) {
   const topics = await apiGet(`/api/exam-definitions/${examDefinitionId}/topics`);
+  let filtered = topics;
+  if (topicIds && topicIds.length > 0) {
+    filtered = topics.filter(t => topicIds.includes(t.id));
+  }
   let all = [];
-  for (const topic of topics) {
+  for (const topic of filtered) {
     const questions = await apiGet(`/api/exam-topics/${topic.id}/questions`);
     all = all.concat(questions);
   }
