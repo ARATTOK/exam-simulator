@@ -22,6 +22,7 @@ async function initExam(examDefinitionId, mode, questionCount, topicIds) {
     mode,
     allQuestions: selected,
     mastered: new Set(),
+    failed: new Set(),
     currentCycle: shuffle([...selected]),
     cycleIndex: 0,
     cycleNumber: 1,
@@ -57,6 +58,7 @@ function loadExamState() {
   try {
     const parsed = JSON.parse(saved);
     parsed.mastered = new Set(parsed.mastered);
+    parsed.failed = new Set(parsed.failed || []);
     examState = parsed;
     return examState;
   } catch {
@@ -67,7 +69,7 @@ function loadExamState() {
 
 function saveExamState() {
   if (!examState) return;
-  const toSave = { ...examState, mastered: Array.from(examState.mastered) };
+  const toSave = { ...examState, mastered: Array.from(examState.mastered), failed: Array.from(examState.failed || []) };
   localStorage.setItem(EXAM_STATE_KEY, JSON.stringify(toSave));
 }
 
@@ -103,7 +105,15 @@ async function submitAnswer(selectedOptionIds) {
     cycle_number: examState.cycleNumber,
   });
 
-  if (isCorrect) { examState.mastered.add(q.id); examState.score++; }
+  if (isCorrect) {
+    if (!examState.failed.has(q.id)) {
+      examState.mastered.add(q.id);
+      examState.score++;
+    }
+  } else {
+    examState.failed.add(q.id);
+    examState.mastered.delete(q.id);
+  }
 
   examState.cycleIndex++;
   saveExamState();

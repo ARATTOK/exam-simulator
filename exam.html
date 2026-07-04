@@ -35,38 +35,34 @@
   <button class="fullscreen-exit-btn" id="fullscreenExitBtn" onclick="toggleFullscreen()" title="Salir de pantalla completa"><i data-lucide="minimize"></i></button>
 
   <div id="examContent" class="hidden">
-    <div class="exam-layout">
-      <button class="btn btn-secondary exam-side-btn exam-side-prev hidden" id="backBtn" onclick="goBack()"><i data-lucide="chevron-left"></i> Anterior</button>
-
-      <div class="exam-container">
-        <div class="exam-progress" id="examProgress">
-          <div style="font-weight:700;font-size:0.9rem;white-space:nowrap;" id="progressLabel">0/0</div>
-          <div class="progress-bar">
-            <div class="progress-fill" id="progressFill" style="width:0%"></div>
-          </div>
-          <div class="exam-timer" id="timerDisplay"><i data-lucide="clock"></i> 00:00</div>
+    <div class="exam-container">
+      <div class="exam-progress" id="examProgress">
+        <div style="font-weight:700;font-size:0.9rem;white-space:nowrap;" id="progressLabel">0/0</div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill" style="width:0%"></div>
         </div>
-
-        <div class="text-sm text-muted mb-4 text-center" id="cycleInfo">Ronda 1</div>
-
-        <div class="question-card" id="questionCard">
-          <div class="q-header">
-            <div class="question-number" id="questionNumber">Pregunta 1</div>
-            <button class="flag-btn" id="flagBtn" onclick="toggleFlag()" title="Marcar para revisar"><i data-lucide="flag"></i></button>
-          </div>
-          <div class="question-text" id="questionText">Cargando pregunta...</div>
-          <div id="questionImageContainer"></div>
-          <div id="optionsContainer" class="mt-4"></div>
-          <div id="feedbackContainer" class="mt-4"></div>
-          <div class="exam-actions" id="examActions">
-            <button class="btn btn-primary" id="submitBtn" onclick="handleSubmit()">Enviar respuesta</button>
-            <button class="btn btn-success hidden" id="finishBtn" onclick="handleFinish()">Ver resultados</button>
-          </div>
-        </div>
-        <div class="flag-summary" id="flagSummary"></div>
+        <div class="exam-timer" id="timerDisplay"><i data-lucide="clock"></i> 00:00</div>
       </div>
 
-      <button class="btn btn-secondary exam-side-btn exam-side-next hidden" id="nextBtn" onclick="nextQuestion()">Siguiente <i data-lucide="chevron-right"></i></button>
+      <div class="text-sm text-muted mb-4 text-center" id="cycleInfo">Ronda 1</div>
+
+      <div class="question-card" id="questionCard">
+        <div class="q-header">
+          <div class="question-number" id="questionNumber">Pregunta 1</div>
+          <button class="flag-btn" id="flagBtn" onclick="toggleFlag()" title="Marcar para revisar"><i data-lucide="flag"></i></button>
+        </div>
+        <div class="question-text" id="questionText">Cargando pregunta...</div>
+        <div id="questionImageContainer"></div>
+        <div id="optionsContainer" class="mt-4"></div>
+        <div id="feedbackContainer" class="mt-4"></div>
+        <div class="exam-actions" id="examActions">
+          <button class="btn btn-secondary hidden" id="backBtn" onclick="goBack()"><i data-lucide="chevron-left"></i> Anterior</button>
+          <button class="btn btn-primary" id="submitBtn" onclick="handleSubmit()">Enviar respuesta</button>
+          <button class="btn btn-secondary hidden" id="nextBtn" onclick="nextQuestion()">Siguiente <i data-lucide="chevron-right"></i></button>
+          <button class="btn btn-success hidden" id="finishBtn" onclick="handleFinish()">Ver resultados</button>
+        </div>
+      </div>
+      <div class="flag-summary" id="flagSummary"></div>
     </div>
   </div>
 
@@ -453,8 +449,8 @@
         if (labels[idx]) { labels[idx].click(); e.preventDefault(); }
       }
       if (e.key === 'Enter') {
-        if (!$('#submitBtn').disabled) { handleSubmit(); e.preventDefault(); }
-        else if (!$('#nextBtn').classList.contains('hidden')) { nextQuestion(); e.preventDefault(); }
+        if (!awaitingNext && !$('#submitBtn').disabled) { handleSubmit(); e.preventDefault(); }
+        else if (awaitingNext && !$('#nextBtn').classList.contains('hidden')) { nextQuestion(); e.preventDefault(); }
       }
       if (e.key === 'b' && !$('#backBtn').classList.contains('hidden')) {
         goBack();
