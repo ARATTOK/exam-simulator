@@ -19,9 +19,9 @@
         <img src="logo.svg" alt="SimuExam"> SimuExam <span style="font-size:0.7rem;font-weight:400;background:var(--primary-light);color:var(--primary);padding:2px 8px;border-radius:4px;">ADMIN</span>
       </a>
       <div class="nav-links">
-        <button class="nav-link" id="themeToggle" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
-        <span class="nav-link user-info" id="userDisplay">👤 admin</span>
-        <a href="dashboard.html" class="nav-link">📊 Dashboard</a>
+        <button class="nav-link" id="themeToggle" onclick="toggleTheme()" title="Cambiar tema"><i data-lucide="moon"></i></button>
+        <span class="nav-link user-info" id="userDisplay"><i data-lucide="user"></i> admin</span>
+        <a href="dashboard.html" class="nav-link"><i data-lucide="bar-chart-2"></i> Dashboard</a>
         <button class="nav-link logout" onclick="logout()">Cerrar sesión</button>
       </div>
     </div>
@@ -37,13 +37,13 @@
       <aside class="admin-sidebar">
         <div class="admin-sidebar-section">Gestión</div>
         <button class="admin-sidebar-link active" data-tab="categories" onclick="switchTab('categories')">
-          <span class="admin-sidebar-icon">📂</span> Categorías
+          <span class="admin-sidebar-icon"><i data-lucide="folder"></i></span> Categorías
         </button>
         <button class="admin-sidebar-link" data-tab="exams" onclick="switchTab('exams')">
-          <span class="admin-sidebar-icon">📋</span> Exámenes
+          <span class="admin-sidebar-icon"><i data-lucide="clipboard-list"></i></span> Exámenes
         </button>
         <button class="admin-sidebar-link" data-tab="users" onclick="switchTab('users')">
-          <span class="admin-sidebar-icon">👥</span> Usuarios
+          <span class="admin-sidebar-icon"><i data-lucide="users"></i></span> Usuarios
         </button>
       </aside>
 
@@ -51,7 +51,7 @@
         <!-- Categories tab -->
         <div class="admin-tab-page" id="tab-categories">
           <div class="admin-header">
-            <h2>📂 Categorías</h2>
+            <h2><i data-lucide="folder"></i> Categorías</h2>
             <button class="btn btn-primary" onclick="resetCategoryForm();openModal('#categoryModal')">+ Nueva categoría</button>
           </div>
           <div class="card">
@@ -67,7 +67,7 @@
         <!-- Exams tab -->
         <div class="admin-tab-page hidden" id="tab-exams">
           <div class="admin-header">
-            <h2>📋 Exámenes</h2>
+            <h2><i data-lucide="clipboard-list"></i> Exámenes</h2>
             <button class="btn btn-primary" onclick="resetExamForm();openModal('#examModal')">+ Nuevo examen</button>
           </div>
           <div class="card">
@@ -91,9 +91,9 @@
               </div>
 
               <div id="examSubTabs" class="hidden flex gap-2" style="margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:12px;">
-                <button class="btn btn-sm btn-secondary exam-subtab active" data-subtab="topics" onclick="switchSubTab('topics')">🏷️ Temas</button>
-                <button class="btn btn-sm btn-secondary exam-subtab" data-subtab="questions" onclick="switchSubTab('questions')">❓ Preguntas</button>
-                <button class="btn btn-sm btn-secondary exam-subtab" data-subtab="import" onclick="switchSubTab('import')">📥 Importar</button>
+                <button class="btn btn-sm btn-secondary exam-subtab active" data-subtab="topics" onclick="switchSubTab('topics')"><i data-lucide="tag"></i> Temas</button>
+                <button class="btn btn-sm btn-secondary exam-subtab" data-subtab="questions" onclick="switchSubTab('questions')"><i data-lucide="help-circle"></i> Preguntas</button>
+                <button class="btn btn-sm btn-secondary exam-subtab" data-subtab="import" onclick="switchSubTab('import')"><i data-lucide="upload"></i> Importar</button>
               </div>
 
               <!-- Topics sub-tab -->
@@ -141,7 +141,7 @@
                   </div>
                 </div>
                 <div class="import-zone" onclick="document.getElementById('importFile').click()">
-                  <div class="icon">📄</div>
+                  <div class="icon"><i data-lucide="file-text"></i></div>
                   <p><strong>Haz clic para seleccionar archivo</strong></p>
                   <p style="font-size:0.8rem;">o arrastra y suelta aquí</p>
                 </div>
@@ -154,7 +154,7 @@
         <!-- Users tab -->
         <div class="admin-tab-page hidden" id="tab-users">
           <div class="admin-header">
-            <h2>👥 Usuarios</h2>
+            <h2><i data-lucide="users"></i> Usuarios</h2>
             <button class="btn btn-primary" onclick="resetUserForm();openModal('#userModal')">+ Nuevo usuario</button>
           </div>
           <div class="card">
@@ -337,6 +337,8 @@
 
   <script src="js/utils.js"></script>
   <script>initTheme();</script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script>initIcons();</script>
   <script src="js/api.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/admin.js" onerror="console.warn('admin.js falló, cargando inline...')"></script>
@@ -393,7 +395,8 @@
       if (!session) { window.location.href = 'index.html'; return; }
       if (session.profile && session.profile.role !== 'admin') { window.location.href = 'dashboard.html'; return; }
       var display = session.user && session.user.email ? session.user.email : 'admin';
-      $('#userDisplay').textContent = '👤 ' + display;
+      $('#userDisplay').innerHTML = '<i data-lucide="user"></i> ' + display;
+      initIcons();
       initAdmin();
     });
   </script>

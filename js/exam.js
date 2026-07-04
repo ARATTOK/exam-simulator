@@ -133,16 +133,6 @@ async function finishExam() {
   examState.elapsedSeconds = Math.floor((Date.now() - examState.startTime) / 1000);
   const percentage = examState.totalQuestions > 0 ? Math.round((examState.score / examState.totalQuestions) * 100) : 0;
 
-  await apiPut('/api/exam-sessions/' + examState.sessionId, {
-    status: 'completed',
-    correct_answers: examState.score,
-    score: percentage,
-    completed_at: new Date().toISOString(),
-  });
-
-  clearExamState();
-  if (examTimerInterval) { clearInterval(examTimerInterval); examTimerInterval = null; }
-
   return {
     done: true,
     score: percentage,
@@ -152,7 +142,38 @@ async function finishExam() {
     mode: examState.mode,
     sessionId: examState.sessionId,
     flagged: flaggedQuestions,
+    allQuestions: examState.allQuestions,
+    mastered: examState.mastered,
   };
+}
+
+async function submitFinalResults() {
+  if (!examState) return;
+  const percentage = examState.totalQuestions > 0 ? Math.round((examState.score / examState.totalQuestions) * 100) : 0;
+
+  await apiPut('/api/exam-sessions/' + examState.sessionId, {
+    status: 'completed',
+    correct_answers: examState.score,
+    score: percentage,
+    completed_at: new Date().toISOString(),
+  });
+
+  const result = {
+    done: true,
+    score: percentage,
+    correct: examState.score,
+    total: examState.totalQuestions,
+    time: examState.elapsedSeconds,
+    mode: examState.mode,
+    sessionId: examState.sessionId,
+    flagged: examState.allQuestions.filter(q => examState.flagged[q.id.toString()]),
+  };
+
+  clearExamState();
+  if (examTimerInterval) { clearInterval(examTimerInterval); examTimerInterval = null; }
+
+  sessionStorage.setItem('simuexam-last-result', JSON.stringify(result));
+  window.location.href = 'results.html';
 }
 
 function startTimer(callback) {

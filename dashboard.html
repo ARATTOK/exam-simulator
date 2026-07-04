@@ -19,8 +19,8 @@
         <img src="logo.svg" alt="SimuExam"> SimuExam
       </a>
       <div class="nav-links">
-        <button class="nav-link" id="themeToggle" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
-        <span class="nav-link user-info" id="userDisplay">👤 usuario</span>
+        <button class="nav-link" id="themeToggle" onclick="toggleTheme()" title="Cambiar tema"><i data-lucide="moon"></i></button>
+        <span class="nav-link user-info" id="userDisplay"><i data-lucide="user"></i> usuario</span>
         <button class="nav-link logout" onclick="logout()">Cerrar sesión</button>
       </div>
     </div>
@@ -42,7 +42,7 @@
         <div>
           <div class="card" style="margin-bottom:24px;">
             <div class="card-header">
-              <span class="card-title">📋 Exámenes disponibles</span>
+              <span class="card-title"><i data-lucide="clipboard-list"></i> Exámenes disponibles</span>
             </div>
             <div id="examsList">
               <div class="text-muted text-sm" style="padding:12px;">No hay exámenes disponibles.</div>
@@ -53,7 +53,7 @@
         <div>
           <div class="card" style="margin-bottom:24px;">
             <div class="card-header">
-              <span class="card-title">⚙️ Configurar sesión</span>
+              <span class="card-title"><i data-lucide="settings"></i> Configurar sesión</span>
             </div>
 
             <div id="examConfig">
@@ -67,12 +67,12 @@
               <label class="form-label">Modo de examen</label>
               <div class="mode-selector">
                 <div class="mode-option selected" data-mode="practice" onclick="selectMode('practice')">
-                  <div class="mode-icon">📖</div>
+                  <div class="mode-icon"><i data-lucide="book-open"></i></div>
                   <div class="mode-name">Práctica</div>
                   <div class="mode-desc">Feedback inmediato al responder</div>
                 </div>
                 <div class="mode-option" data-mode="exam" onclick="selectMode('exam')">
-                  <div class="mode-icon">🎯</div>
+                  <div class="mode-icon"><i data-lucide="target"></i></div>
                   <div class="mode-name">Examen</div>
                   <div class="mode-desc">Resultados al finalizar</div>
                 </div>
@@ -94,14 +94,14 @@
               </div>
 
               <button class="btn btn-primary btn-lg btn-block mt-4" onclick="startExam()">
-                🚀 Comenzar examen
+                <i data-lucide="play"></i> Comenzar examen
               </button>
             </div>
           </div>
 
           <div class="card">
             <div class="card-header">
-              <span class="card-title">📊 Historial</span>
+              <span class="card-title"><i data-lucide="bar-chart-2"></i> Historial</span>
             </div>
             <div id="examHistory">
               <div class="text-muted text-sm" style="padding:12px;">Aún no has realizado exámenes.</div>
@@ -114,6 +114,8 @@
 
   <script src="js/utils.js"></script>
   <script>initTheme();</script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script>initIcons();</script>
   <script src="js/api.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/exam.js"></script>
@@ -154,9 +156,9 @@
           <h3>${esc(e.name)}</h3>
           <p>${esc(e.description || e.category_name || 'Sin descripción')}</p>
           <div class="topic-count">
-            ${e.category_name ? '📂 ' + esc(e.category_name) + ' · ' : ''}
+            ${e.category_name ? esc(e.category_name) + ' · ' : ''}
             ${e.topic_count || 0} temas · ${e.question_count || 0} preguntas
-            ${e.suggested_minutes ? '· ⏱ ' + e.suggested_minutes + 'min' : ''}
+            ${e.suggested_minutes ? '· ' + e.suggested_minutes + 'min' : ''}
           </div>
         </div>
       `).join('');
@@ -175,8 +177,8 @@
       $('#configExamName').textContent = exam.name;
       let meta = exam.question_count + ' preguntas disponibles';
       if (exam.topic_count) meta += ' · ' + exam.topic_count + ' temas';
-      if (exam.suggested_minutes) meta += ' · ⏱ ' + exam.suggested_minutes + ' min sugeridos';
-      if (exam.passing_score) meta += ' · 🎯 Nota de corte: ' + exam.passing_score + '%';
+      if (exam.suggested_minutes) meta += ' · ' + exam.suggested_minutes + ' min sugeridos';
+      if (exam.passing_score) meta += ' · Nota de corte: ' + exam.passing_score + '%';
       $('#configExamMeta').textContent = meta;
 
       $('#maxQuestionsHint').textContent = 'Máximo: ' + examQuestionCount;
@@ -301,7 +303,8 @@
     checkSession().then(session => {
       if (!session) { window.location.href = 'index.html'; return; }
       if (session.profile?.role === 'admin') { window.location.href = 'admin.html'; return; }
-      $('#userDisplay').textContent = '👤 ' + (session.user?.email || 'usuario');
+      $('#userDisplay').innerHTML = '<i data-lucide="user"></i> ' + (session.user?.email || 'usuario');
+      initIcons();
       loadDashboard();
     });
   </script>

@@ -224,3 +224,9 @@ function toggleTheme() {
 function initTheme() {
   setTheme(getTheme());
 }
+
+function initIcons() {
+  if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+  }
+}

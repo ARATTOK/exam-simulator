@@ -1099,16 +1099,106 @@ a:hover { text-decoration: underline; }
 }
 
 .exam-actions {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 16px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
   margin-top: 28px;
-  align-items: center;
 }
 
-#backBtn { justify-self: start; }
-#submitBtn { justify-self: center; }
-#nextBtn, #finishBtn { justify-self: end; }
+.exam-layout {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 24px 48px;
+  position: relative;
+}
+
+.exam-side-btn {
+  position: sticky;
+  top: 50vh;
+  transform: translateY(-50%);
+  padding: 14px 18px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.85;
+  transition: opacity 0.2s;
+}
+
+.exam-side-btn:hover {
+  opacity: 1;
+}
+
+.exam-container {
+  flex: 1;
+  max-width: 1000px;
+  min-width: 0;
+}
+
+/* Review Section */
+.review-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  margin-bottom: 8px;
+  background: var(--surface);
+  transition: var(--transition);
+}
+.review-item:hover { border-color: var(--primary); }
+.review-item.correct { border-left: 3px solid var(--success); }
+.review-item.incorrect { border-left: 3px solid var(--error); }
+.review-item.flagged { border-left: 3px solid var(--warning); }
+.review-item.unanswered { border-left: 3px solid var(--text-secondary); opacity: 0.7; }
+.review-q-num { font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); min-width: 32px; }
+.review-q-text { flex: 1; font-size: 0.92rem; line-height: 1.4; }
+.review-q-status { font-size: 0.78rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+.review-q-status.correct { background: rgba(16,185,129,0.15); color: var(--success); }
+.review-q-status.incorrect { background: rgba(239,68,68,0.15); color: var(--error); }
+.review-q-status.flagged { background: rgba(245,158,11,0.15); color: var(--warning); }
+.review-stat-card {
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 12px 20px;
+  text-align: center;
+  min-width: 100px;
+}
+.review-stat-value { font-size: 1.5rem; font-weight: 800; }
+.review-stat-label { font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; }
+.review-filter { display: inline-flex; align-items: center; gap: 4px; }
+.review-filter i { width: 14px; height: 14px; }
+
+/* Fullscreen mode */
+body.fullscreen .nav { display: none; }
+body.fullscreen .exam-layout { padding-top: 16px; }
+.fullscreen-exit-btn {
+  display: none;
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 300;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  opacity: 0.7;
+}
+.fullscreen-exit-btn:hover { opacity: 1; transform: scale(1.1); }
+body.fullscreen .fullscreen-exit-btn { display: flex; }
 
 /* Feedback */
 .feedback-box {
@@ -1651,11 +1741,25 @@ tr.selected td { background: var(--primary-light); }
   .radio-label { padding: 14px 16px; font-size: 0.88rem; min-height: 48px; }
   .option-indicator { width: 20px; height: 20px; min-width: 20px; }
   .question-image { max-height: 200px; }
+  .exam-layout {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px 12px 32px;
+    gap: 0;
+  }
+  .exam-side-btn {
+    position: static;
+    transform: none;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
+  .exam-side-prev { order: -1; }
+  .exam-side-next { order: 1; margin-top: 8px; }
   .exam-actions {
-    grid-template-columns: 1fr;
+    flex-direction: column;
     gap: 10px;
   }
-  #backBtn, #submitBtn, #nextBtn, #finishBtn { justify-self: stretch; text-align: center; }
+  .exam-actions .btn { width: 100%; }
   .results-stats { grid-template-columns: 1fr; }
   .results-score-circle { width: 120px; height: 120px; font-size: 2.2rem; }
 }
@@ -1667,10 +1771,10 @@ tr.selected td { background: var(--primary-light); }
   .option-indicator { width: 24px; height: 24px; min-width: 24px; }
   .exam-progress { flex-wrap: wrap; gap: 6px; padding: 12px 16px; }
   .exam-actions {
-    grid-template-columns: 1fr;
+    flex-direction: column;
     gap: 10px;
   }
-  #backBtn, #submitBtn, #nextBtn, #finishBtn { justify-self: stretch; text-align: center; }
+  .exam-actions .btn { width: 100%; }
   .btn-lg { padding: 16px 24px; font-size: 1rem; }
   .auth-card { padding: 24px 18px; }
   .auth-title { font-size: 1.2rem; }

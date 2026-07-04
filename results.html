@@ -19,8 +19,8 @@
         <img src="logo.svg" alt="SimuExam"> SimuExam
       </a>
       <div class="nav-links">
-        <button class="nav-link" id="themeToggle" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
-        <span class="nav-link user-info" id="userDisplay">👤 usuario</span>
+        <button class="nav-link" id="themeToggle" onclick="toggleTheme()" title="Cambiar tema"><i data-lucide="moon"></i></button>
+        <span class="nav-link user-info" id="userDisplay"><i data-lucide="user"></i> usuario</span>
         <a href="dashboard.html" class="nav-link">← Volver al dashboard</a>
       </div>
     </div>
@@ -55,14 +55,14 @@
       </div>
 
       <div style="text-align:center;margin-bottom:24px;display:flex;gap:12px;justify-content:center;">
-        <a href="dashboard.html" class="btn btn-primary">📋 Ir al dashboard</a>
-        <button class="btn btn-secondary" onclick="window.location.href='dashboard.html'" id="retryBtn" style="display:none;">🔄 Reintentar</button>
-        <button class="btn btn-secondary hidden" id="reviewBtn" onclick="reviewFlagged()">🏴 Revisar preguntas</button>
+        <a href="dashboard.html" class="btn btn-primary"><i data-lucide="clipboard-list"></i> Ir al dashboard</a>
+        <button class="btn btn-secondary" onclick="window.location.href='dashboard.html'" id="retryBtn" style="display:none;"><i data-lucide="rotate-ccw"></i> Reintentar</button>
+        <button class="btn btn-secondary hidden" id="reviewBtn" onclick="reviewFlagged()"><i data-lucide="flag"></i> Revisar preguntas</button>
       </div>
 
       <div class="card">
         <div class="card-header">
-          <span class="card-title">📋 Detalle del examen</span>
+          <span class="card-title"><i data-lucide="clipboard-list"></i> Detalle del examen</span>
           <span id="modeBadge"></span>
         </div>
         <div id="resultsDetail">
@@ -74,6 +74,8 @@
 
   <script src="js/utils.js"></script>
   <script>initTheme();</script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script>initIcons();</script>
   <script src="js/api.js"></script>
   <script src="js/auth.js"></script>
   <script>
@@ -125,16 +127,16 @@
       else if (score < 50) circle.classList.add('fail');
 
       if (score === 100) {
-        $('#resultsTitle').textContent = '🎉 ¡Perfecto! Todas dominadas';
+        $('#resultsTitle').textContent = '¡Perfecto! Todas dominadas';
         $('#resultsSub').textContent = 'Dominaste todas las preguntas. ¡Excelente trabajo!';
       } else if (score >= 70) {
-        $('#resultsTitle').textContent = '🌟 ¡Muy bien!';
+        $('#resultsTitle').textContent = '¡Muy bien!';
         $('#resultsSub').textContent = 'Buen rendimiento. Sigue practicando para mejorar.';
       } else if (score >= 40) {
-        $('#resultsTitle').textContent = '💪 Vas por buen camino';
+        $('#resultsTitle').textContent = 'Vas por buen camino';
         $('#resultsSub').textContent = 'Sigue practicando las preguntas que fallaste.';
       } else {
-        $('#resultsTitle').textContent = '📚 Sigue estudiando';
+        $('#resultsTitle').textContent = 'Sigue estudiando';
         $('#resultsSub').textContent = 'Revisa las respuestas correctas y vuelve a intentarlo.';
       }
 
@@ -143,20 +145,20 @@
       $('#statTime').textContent = formatTime(result.time || 0);
 
       $('#modeBadge').innerHTML = result.mode === 'practice'
-        ? '<span class="badge badge-success">📖 Modo práctica</span>'
-        : '<span class="badge badge-primary">🎯 Modo examen</span>';
+        ? '<span class="badge badge-success">Modo práctica</span>'
+        : '<span class="badge badge-primary">Modo examen</span>';
 
       if (score < 100 && total > 0) show('#retryBtn');
 
       if (result.flagged && result.flagged.length > 0) {
         show('#reviewBtn');
-        $('#reviewBtn').textContent = '🏴 Revisar (' + result.flagged.length + ')';
+        $('#reviewBtn').textContent = 'Revisar (' + result.flagged.length + ')';
         sessionStorage.setItem('simuexam-review-questions', JSON.stringify(result.flagged));
       }
 
       $('#resultsDetail').innerHTML = `
         <div style="padding:12px;text-align:center;color:var(--text-secondary);">
-          <p style="font-size:1.1rem;margin-bottom:8px;">${result.mode === 'practice' ? '📖 Modo práctica' : '🎯 Modo examen'}</p>
+          <p style="font-size:1.1rem;margin-bottom:8px;">${result.mode === 'practice' ? 'Modo práctica' : 'Modo examen'}</p>
           <p>Completaste <strong>${total}</strong> preguntas</p>
           <p class="text-sm">Acertaste <strong>${correct}</strong> (${score}%)</p>
           <p class="text-sm">Tiempo total: <strong>${formatTime(result.time || 0)}</strong></p>
@@ -173,7 +175,8 @@
 
     checkSession().then(session => {
       if (!session) { window.location.href = 'index.html'; return; }
-      $('#userDisplay').textContent = '👤 ' + (session.user?.email || 'usuario');
+      $('#userDisplay').innerHTML = '<i data-lucide="user"></i> ' + (session.user?.email || 'usuario');
+      initIcons();
       loadResults();
     });
   </script>
