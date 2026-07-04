@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SimuExam — Iniciar sesión</title>
+  <link rel="icon" type="image/svg+xml" href="logo.svg">
+  <link rel="apple-touch-icon" href="logo.svg">
+  <link rel="manifest" href="site.webmanifest">
+  <meta name="theme-color" content="#0F172A">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <img src="logo.svg" alt="SimuExam">
+        <span>SimuExam</span>
+      </div>
+
+      <div id="loginView">
+        <div class="auth-title">Iniciar sesión</div>
+        <div class="auth-subtitle">Accede a tu panel de exámenes</div>
+
+        <form id="loginForm" onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <label class="form-label" for="loginEmail">Correo electrónico</label>
+            <input class="form-input" id="loginEmail" type="email" placeholder="tu@correo.com" required autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="loginPassword">Contraseña</label>
+            <input class="form-input" id="loginPassword" type="password" placeholder="••••••••" required autocomplete="current-password">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block btn-lg" id="loginBtn">
+            Iniciar sesión
+          </button>
+        </form>
+
+        <div class="auth-footer" style="margin-top:20px;">
+          ¿No tienes cuenta? Contacta al administrador.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/utils.js"></script>
+  <script>initTheme();</script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = $('#loginEmail').value.trim();
+      const password = $('#loginPassword').value;
+      const btn = $('#loginBtn');
+
+      btn.disabled = true; btn.textContent = 'Ingresando...';
+
+      try {
+        await login(email, password);
+        toastSuccess('Inicio de sesión exitoso');
+        setTimeout(() => {
+          if (isAdmin()) window.location.href = 'admin.html';
+          else window.location.href = 'dashboard.html';
+        }, 200);
+      } catch (err) {
+        toastError(err.message);
+      } finally {
+        btn.disabled = false; btn.textContent = 'Iniciar sesión';
+      }
+    }
+
+    checkSession().then(session => {
+      if (session) {
+        if (isAdmin()) window.location.href = 'admin.html';
+        else window.location.href = 'dashboard.html';
+      }
+    });
+  </script>
+</body>
+</html>

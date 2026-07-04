@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Fondo circular -->
+  <circle cx="100" cy="100" r="95" fill="url(#bg)"/>
+
+  <!-- Hoja de examen -->
+  <rect x="55" y="45" width="90" height="110" rx="6" fill="white" transform="rotate(-8, 100, 100)"/>
+
+  <!-- Líneas de texto -->
+  <line x1="70" y1="65" x2="130" y2="60" stroke="#4F46E5" stroke-width="3" stroke-linecap="round"/>
+  <line x1="72" y1="80" x2="128" y2="75" stroke="#4F46E5" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+  <line x1="72" y1="95" x2="128" y2="90" stroke="#4F46E5" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+  <line x1="72" y1="110" x2="115" y2="105" stroke="#4F46E5" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- Checkmark -->
+  <circle cx="145" cy="135" r="22" fill="#10B981"/>
+  <path d="M137 135l5 5 10-12" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Reloj / tiempo -->
+  <circle cx="58" cy="50" r="20" fill="#F59E0B"/>
+  <circle cx="58" cy="50" r="16" fill="white"/>
+  <line x1="58" y1="50" x2="58" y2="40" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="58" y1="50" x2="66" y2="52" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Interrogación -->
+  <text x="148" y="42" font-family="system-ui, sans-serif" font-size="28" font-weight="bold" fill="white">?</text>
+</svg>

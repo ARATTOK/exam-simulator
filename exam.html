@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SimuExam — Examen</title>
+  <link rel="icon" type="image/svg+xml" href="logo.svg">
+  <link rel="apple-touch-icon" href="logo.svg">
+  <link rel="manifest" href="site.webmanifest">
+  <meta name="theme-color" content="#0F172A">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="dashboard.html" class="nav-brand">
+        <img src="logo.svg" alt="SimuExam"> SimuExam
+      </a>
+      <div class="nav-links">
+        <button class="nav-link" id="themeToggle" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
+        <button class="nav-link" id="fullscreenBtn" onclick="toggleFullscreen()" title="Pantalla completa">⛶</button>
+        <span class="nav-link user-info" id="userDisplay">👤 usuario</span>
+        <button class="nav-link logout" onclick="confirmExit()">Salir</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="loading-center" id="loadingIndicator">
+    <div class="spinner"></div>
+    <p>Preparando examen...</p>
+  </div>
+
+  <div id="examContent" class="hidden">
+    <div class="exam-container">
+      <div class="exam-progress" id="examProgress">
+        <div style="font-weight:700;font-size:0.9rem;white-space:nowrap;" id="progressLabel">0/0</div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+        <div class="exam-timer" id="timerDisplay">⏱ 00:00</div>
+      </div>
+
+      <div class="text-sm text-muted mb-4 text-center" id="cycleInfo">Ronda 1</div>
+
+      <div class="question-card" id="questionCard">
+        <div class="q-header">
+          <div class="question-number" id="questionNumber">Pregunta 1</div>
+          <button class="flag-btn" id="flagBtn" onclick="toggleFlag()" title="Marcar para revisar">🏴</button>
+        </div>
+        <div class="question-text" id="questionText">Cargando pregunta...</div>
+        <div id="questionImageContainer"></div>
+        <div id="optionsContainer" class="mt-4"></div>
+        <div id="feedbackContainer" class="mt-4"></div>
+        <div class="exam-actions" id="examActions">
+          <button class="btn btn-secondary hidden" id="backBtn" onclick="goBack()">← Anterior (b)</button>
+          <button class="btn btn-primary" id="submitBtn" onclick="handleSubmit()">Enviar respuesta</button>
+          <button class="btn btn-secondary hidden" id="nextBtn" onclick="nextQuestion()">Siguiente →</button>
+          <button class="btn btn-success hidden" id="finishBtn" onclick="handleFinish()">Ver resultados 🎉</button>
+        </div>
+      </div>
+      <div class="flag-summary" id="flagSummary"></div>
+
+      <div id="exitConfirm" class="hidden" style="text-align:center;margin-top:16px;">
+        <div class="card" style="max-width:400px;margin:0 auto;">
+          <p style="margin-bottom:12px;">¿Seguro que quieres salir? Tu progreso se perderá.</p>
+          <div class="flex gap-2" style="justify-content:center;">
+            <button class="btn btn-secondary" onclick="hide('#exitConfirm');show('#questionCard')">Continuar</button>
+            <button class="btn btn-danger" onclick="exitExam()">Salir</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/utils.js"></script>
+  <script>initTheme();</script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/exam.js"></script>
+  <script>
+    let awaitingNext = false;
+    let submittedOptionIds = [];
+
+    async function initExamPage() {
+      toggleLoading(true);
+      const saved = loadExamState();
+      if (!saved || saved.completed) {
+        toastError('No hay un examen en curso.');
+        setTimeout(() => { window.location.href = 'dashboard.html'; }, 500);
+        return;
+      }
+      examState = saved;
+      if (!examState.flagged) examState.flagged = {};
+      show('#examContent');
+      startTimer(updateTimer);
+      updateTimer(examState.elapsedSeconds);
+      updateProgress();
+      renderQuestion();
+      toggleLoading(false);
+    }
+
+    function toggleFlag() {
+      if (!examState) return;
+      var q = examState.currentCycle[examState.cycleIndex];
+      if (!q) return;
+      if (!examState.flagged) examState.flagged = {};
+      if (examState.flagged[q.id]) {
+        delete examState.flagged[q.id];
+      } else {
+        examState.flagged[q.id] = true;
+      }
+      saveExamState();
+      updateFlagState();
+    }
+
+    function updateFlagState() {
+      if (!examState) return;
+      var q = examState.currentCycle[examState.cycleIndex];
+      var btn = $('#flagBtn');
+      if (!q || !btn) return;
+      if (examState.flagged && examState.flagged[q.id]) {
+        btn.classList.add('flagged');
+        btn.textContent = '🏴';
+      } else {
+        btn.classList.remove('flagged');
+        btn.textContent = '🏴';
+      }
+      var flaggedCount = examState.flagged ? Object.keys(examState.flagged).length : 0;
+      var summary = $('#flagSummary');
+      if (flaggedCount > 0) {
+        summary.textContent = '🏴 ' + flaggedCount + ' pregunta' + (flaggedCount > 1 ? 's' : '') + ' marcada' + (flaggedCount > 1 ? 's' : '');
+        summary.classList.add('has-flags');
+      } else {
+        summary.textContent = '';
+        summary.classList.remove('has-flags');
+      }
+    }
+
+    function goBack() {
+      if (examState.cycleIndex > 0) {
+        examState.cycleIndex--;
+        awaitingNext = false;
+        renderQuestion();
+        updateProgress();
+      }
+    }
+
+    function renderQuestion() {
+      const q = getCurrentQuestion();
+      if (!q) {
+        $('#questionText').textContent = 'Preparando siguiente ronda...';
+        hide('#optionsContainer');
+        hide('#submitBtn');
+        hide('#backBtn');
+        show('#nextBtn');
+        return;
+      }
+      awaitingNext = false;
+      submittedOptionIds = [];
+
+      const totalInCycle = examState.currentCycle.length;
+      const qNum = examState.cycleIndex + 1;
+      $('#questionNumber').textContent = 'Pregunta ' + qNum + ' de ' + totalInCycle;
+
+      // Preserve line breaks and formatting (handle both \n literal and actual newlines)
+      var questionHtml = esc(q.text).replace(/\\n/g, '\n').replace(/\n/g, '<br>');
+      $('#questionText').innerHTML = questionHtml;
+
+      const imgContainer = $('#questionImageContainer');
+      imgContainer.innerHTML = q.image_url
+        ? '<img class="question-image" src="' + esc(q.image_url) + '" alt="Imagen de la pregunta" loading="lazy">'
+        : '';
+
+      var badge = isMultipleCorrect(q)
+        ? '<span class="badge badge-multi">Selección múltiple</span>'
+        : '<span class="badge badge-single">Una respuesta</span>';
+
+      var container = $('#optionsContainer');
+      container.innerHTML = '<div class="options-header">' + badge + '</div>'
+        + (q.options || []).map(function(o, i) {
+          return '<div class="radio-label" data-opt-id="' + o.id + '" onclick="onOptionClick(this,\'' + (isMultipleCorrect(q) ? 'checkbox' : 'radio') + '\',\'option_' + q.id + '\')">'
+            + '<input type="' + (isMultipleCorrect(q) ? 'checkbox' : 'radio') + '" name="option_' + q.id + '" value="' + o.id + '" aria-label="' + esc(o.text) + '">'
+            + '<span class="option-number">' + (i + 1) + '</span>'
+            + '<span class="option-indicator"></span>'
+            + '<span class="option-text">' + esc(o.text).replace(/\\n/g, '\n').replace(/\n/g, '<br>') + '</span>'
+            + '</div>';
+        }).join('');
+
+      hide('#nextBtn'); hide('#finishBtn'); hide('#feedbackContainer');
+      show('#submitBtn');
+      $('#submitBtn').disabled = true;
+      
+      // Show back button if not first question
+      if (examState.cycleIndex > 0) show('#backBtn');
+      else hide('#backBtn');
+      
+      updateFlagState();
+      updateProgress();
+    }
+
+    function onOptionClick(labelEl, type, groupName) {
+      if (awaitingNext) return;
+      var input = labelEl.querySelector('input');
+      if (type === 'radio') {
+        var container = labelEl.closest('#optionsContainer');
+        var allLabels = container.querySelectorAll('.radio-label');
+        for (var i = 0; i < allLabels.length; i++) allLabels[i].classList.remove('selected');
+        labelEl.classList.add('selected');
+        input.checked = true;
+      } else {
+        input.checked = !input.checked;
+        if (input.checked) {
+          labelEl.classList.add('selected');
+        } else {
+          labelEl.classList.remove('selected');
+        }
+      }
+      updateSubmitBtn();
+    }
+
+    function updateSubmitBtn() {
+      var checked = $$('#optionsContainer input:checked');
+      $('#submitBtn').disabled = checked.length === 0;
+    }
+
+    async function handleSubmit() {
+      if (awaitingNext) return;
+      var checked = $$('#optionsContainer input:checked');
+      if (checked.length === 0) return;
+      submittedOptionIds = [];
+      for (var i = 0; i < checked.length; i++) submittedOptionIds.push(checked[i].value);
+
+      var inputs = $$('#optionsContainer input');
+      for (var i = 0; i < inputs.length; i++) inputs[i].disabled = true;
+
+      var q = examState.currentCycle[examState.cycleIndex];
+      var correctIds = [];
+      if (q.options) {
+        for (var i = 0; i < q.options.length; i++) {
+          if (q.options[i].is_correct) correctIds.push(q.options[i].id);
+        }
+      }
+      var sortedSubmitted = submittedOptionIds.slice().sort();
+      var sortedCorrect = correctIds.slice().sort();
+      var isCorrect = arraysEqual(sortedSubmitted, sortedCorrect);
+
+      var labels = $$('#optionsContainer .radio-label');
+      for (var i = 0; i < labels.length; i++) {
+        var input = labels[i].querySelector('input');
+        var isOptCorrect = correctIds.indexOf(input.value) !== -1;
+        if (input.checked) labels[i].classList.add(isOptCorrect ? 'correct' : 'incorrect');
+        else if (isOptCorrect) labels[i].classList.add('correct');
+      }
+
+      if (examState.mode === 'practice') {
+        var fb = $('#feedbackContainer');
+        if (isCorrect) {
+          fb.innerHTML = '<div class="feedback-box correct">✅ ¡Correcto!' + (q.explanation ? '<div class="explanation">' + esc(q.explanation) + '</div>' : '') + '</div>';
+        } else {
+          var correctText = [];
+          if (q.options) {
+            for (var i = 0; i < q.options.length; i++) {
+              if (q.options[i].is_correct) correctText.push(q.options[i].text);
+            }
+          }
+          fb.innerHTML = '<div class="feedback-box incorrect">❌ Incorrecto.' + (q.explanation ? '<div class="explanation">' + esc(q.explanation) + '</div>' : '<div class="explanation">Respuesta correcta: <strong>' + esc(correctText.join(', ')) + '</strong></div>') + '</div>';
+        }
+        show(fb);
+      }
+
+      awaitingNext = true;
+      hide('#submitBtn');
+      var result = await submitAnswer(submittedOptionIds);
+
+      if (result && result.done) {
+        $('#examActions').innerHTML = '';
+        show('#finishBtn');
+        $('#finishBtn').textContent = '🎉 Ver resultados (' + result.score + '%)';
+        stopTimer();
+        return;
+      }
+
+      if (examState.mode === 'exam') {
+        if (result && result.nextCycle) {
+          $('#nextBtn').textContent = '🔄 Siguiente ronda (Ronda ' + result.cycleNumber + ')';
+        } else {
+          $('#nextBtn').textContent = 'Siguiente →';
+        }
+        show('#nextBtn');
+      } else {
+        if (result && result.nextCycle) {
+          $('#nextBtn').textContent = '🔄 Siguiente ronda (Ronda ' + result.cycleNumber + ')';
+        }
+        show('#nextBtn');
+      }
+    }
+
+    function nextQuestion() { awaitingNext = false; renderQuestion(); }
+
+    async function handleFinish() {
+      stopTimer();
+      var result = await finishExam();
+      sessionStorage.setItem('simuexam-last-result', JSON.stringify(result));
+      window.location.href = 'results.html';
+    }
+
+    function updateProgress() {
+      if (!examState) return;
+      var pct = examState.totalQuestions > 0 ? Math.round((examState.mastered.size / examState.totalQuestions) * 100) : 0;
+      $('#progressFill').style.width = pct + '%';
+      $('#progressLabel').textContent = examState.mastered.size + '/' + examState.totalQuestions + ' dominadas';
+      $('#cycleInfo').textContent = 'Ronda ' + examState.cycleNumber + ' · ' + (examState.mode === 'practice' ? '📖 Práctica' : '🎯 Examen');
+    }
+
+    function updateTimer(seconds) { $('#timerDisplay').textContent = '⏱ ' + formatTime(seconds); }
+
+    function confirmExit() { hide('#questionCard'); show('#exitConfirm'); }
+
+    function exitExam() { clearExamState(); stopTimer(); window.location.href = 'dashboard.html'; }
+
+    function toggleFullscreen() {
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      } else {
+        var el = document.documentElement;
+        if (el.requestFullscreen) el.requestFullscreen();
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      }
+    }
+
+    document.addEventListener('fullscreenchange', updateFullscreenBtn);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenBtn);
+    function updateFullscreenBtn() {
+      var btn = $('#fullscreenBtn');
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        btn.textContent = '⛶';
+        btn.title = 'Salir de pantalla completa';
+      } else {
+        btn.textContent = '⛶';
+        btn.title = 'Pantalla completa';
+      }
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key >= '1' && e.key <= '9') {
+        var idx = parseInt(e.key) - 1;
+        var labels = $$('#optionsContainer .radio-label');
+        if (labels[idx]) { labels[idx].click(); e.preventDefault(); }
+      }
+      if (e.key === 'Enter') {
+        if (!$('#submitBtn').disabled) { handleSubmit(); e.preventDefault(); }
+        else if (!$('#nextBtn').classList.contains('hidden')) { nextQuestion(); e.preventDefault(); }
+      }
+      if (e.key === 'b' && !$('#backBtn').classList.contains('hidden')) {
+        goBack();
+        e.preventDefault();
+      }
+      if ((e.key === 'ArrowRight' || e.key === 'n') && !$('#nextBtn').classList.contains('hidden')) {
+        nextQuestion(); e.preventDefault();
+      }
+    });
+
+    checkSession().then(function(session) {
+      if (!session) { window.location.href = 'index.html'; return; }
+      $('#userDisplay').textContent = '👤 ' + (session.user?.email || 'usuario');
+      initExamPage();
+    });
+  </script>
+</body>
+</html>

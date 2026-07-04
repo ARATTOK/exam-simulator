@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SimuExam — Dashboard</title>
+  <link rel="icon" type="image/svg+xml" href="logo.svg">
+  <link rel="apple-touch-icon" href="logo.svg">
+  <link rel="manifest" href="site.webmanifest">
+  <meta name="theme-color" content="#0F172A">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="dashboard.html" class="nav-brand">
+        <img src="logo.svg" alt="SimuExam"> SimuExam
+      </a>
+      <div class="nav-links">
+        <button class="nav-link" id="themeToggle" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
+        <span class="nav-link user-info" id="userDisplay">👤 usuario</span>
+        <button class="nav-link logout" onclick="logout()">Cerrar sesión</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="loading-center" id="loadingIndicator">
+    <div class="spinner"></div>
+    <p>Cargando...</p>
+  </div>
+
+  <div id="dashboardContent" class="hidden">
+    <div class="container">
+      <div style="padding:32px 0 16px;">
+        <h1 style="font-size:1.75rem;font-weight:800;">Mis exámenes</h1>
+        <p class="text-muted">Selecciona un examen y comienza a practicar.</p>
+      </div>
+
+      <div class="dashboard-grid">
+        <div>
+          <div class="card" style="margin-bottom:24px;">
+            <div class="card-header">
+              <span class="card-title">📋 Exámenes disponibles</span>
+            </div>
+            <div id="examsList">
+              <div class="text-muted text-sm" style="padding:12px;">No hay exámenes disponibles.</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card" style="margin-bottom:24px;">
+            <div class="card-header">
+              <span class="card-title">⚙️ Configurar sesión</span>
+            </div>
+
+            <div id="examConfig">
+              <div class="text-muted text-sm" style="padding:12px;">Selecciona un examen para configurar.</div>
+            </div>
+
+            <div id="examConfigReady" class="hidden">
+              <p class="text-muted text-sm mb-2">Examen: <strong id="configExamName">—</strong></p>
+              <p class="text-muted text-sm mb-4" id="configExamMeta">—</p>
+
+              <label class="form-label">Modo de examen</label>
+              <div class="mode-selector">
+                <div class="mode-option selected" data-mode="practice" onclick="selectMode('practice')">
+                  <div class="mode-icon">📖</div>
+                  <div class="mode-name">Práctica</div>
+                  <div class="mode-desc">Feedback inmediato al responder</div>
+                </div>
+                <div class="mode-option" data-mode="exam" onclick="selectMode('exam')">
+                  <div class="mode-icon">🎯</div>
+                  <div class="mode-name">Examen</div>
+                  <div class="mode-desc">Resultados al finalizar</div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="questionCount">Cantidad de preguntas</label>
+                <div class="flex gap-2 items-center">
+                  <input class="form-input" id="questionCount" type="number" min="1" value="10" style="max-width:120px;">
+                  <button class="btn btn-sm btn-secondary" id="allQuestionsBtn" onclick="setAllQuestions()" title="Seleccionar todas">Todas</button>
+                </div>
+                <span class="form-hint" id="maxQuestionsHint">Máximo: —</span>
+              </div>
+
+              <div id="topicSelection" class="hidden" style="margin-bottom:16px;">
+                <label class="form-label">Temas (opcional)</label>
+                <div class="topic-tags" id="topicTags"></div>
+                <span class="form-hint">Selecciona temas para filtrar. Si no seleccionas, se incluyen todos.</span>
+              </div>
+
+              <button class="btn btn-primary btn-lg btn-block mt-4" onclick="startExam()">
+                🚀 Comenzar examen
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">📊 Historial</span>
+            </div>
+            <div id="examHistory">
+              <div class="text-muted text-sm" style="padding:12px;">Aún no has realizado exámenes.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/utils.js"></script>
+  <script>initTheme();</script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/exam.js"></script>
+  <script>
+    let selectedExamId = null;
+    let selectedMode = 'practice';
+    let exams = [];
+    let examQuestionCount = 0;
+    let examTopics = [];
+    let selectedTopicIds = new Set();
+
+    async function loadDashboard() {
+      toggleLoading(true);
+      try {
+        const ex = await apiGet('/api/dashboard/exams');
+        exams = ex || [];
+        renderExams();
+
+        const history = await apiGet('/api/dashboard/history');
+        renderHistory(history || []);
+      } catch (err) {
+        console.error(err);
+        toastError('Error al cargar datos: ' + err.message);
+      } finally {
+        toggleLoading(false);
+        show('#dashboardContent');
+      }
+    }
+
+    function renderExams() {
+      const container = $('#examsList');
+      if (!exams.length) {
+        container.innerHTML = '<div class="text-muted text-sm" style="padding:12px;">No hay exámenes disponibles. Contacta al administrador.</div>';
+        return;
+      }
+      container.innerHTML = exams.map(e => `
+        <div class="category-card ${e.id === selectedExamId ? 'selected' : ''}" onclick="selectExam('${e.id}')">
+          <h3>${esc(e.name)}</h3>
+          <p>${esc(e.description || e.category_name || 'Sin descripción')}</p>
+          <div class="topic-count">
+            ${e.category_name ? '📂 ' + esc(e.category_name) + ' · ' : ''}
+            ${e.topic_count || 0} temas · ${e.question_count || 0} preguntas
+            ${e.suggested_minutes ? '· ⏱ ' + e.suggested_minutes + 'min' : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function selectExam(examId) {
+      selectedExamId = examId;
+      selectedTopicIds = new Set();
+      renderExams();
+
+      const exam = exams.find(e => e.id === examId);
+      if (!exam) return;
+
+      examQuestionCount = exam.question_count || 0;
+
+      $('#configExamName').textContent = exam.name;
+      let meta = exam.question_count + ' preguntas disponibles';
+      if (exam.topic_count) meta += ' · ' + exam.topic_count + ' temas';
+      if (exam.suggested_minutes) meta += ' · ⏱ ' + exam.suggested_minutes + ' min sugeridos';
+      if (exam.passing_score) meta += ' · 🎯 Nota de corte: ' + exam.passing_score + '%';
+      $('#configExamMeta').textContent = meta;
+
+      $('#maxQuestionsHint').textContent = 'Máximo: ' + examQuestionCount;
+      $('#questionCount').value = Math.min(10, examQuestionCount || 1);
+
+      try {
+        examTopics = await apiGet('/api/exam-definitions/' + examId + '/topics');
+        renderTopics();
+        if (examTopics.length > 0) show('#topicSelection');
+        else hide('#topicSelection');
+      } catch (e) {
+        examTopics = [];
+        hide('#topicSelection');
+      }
+      updateQuestionUI();
+
+      show('#examConfigReady');
+      hide('#examConfig');
+    }
+
+    function renderTopics() {
+      var container = $('#topicTags');
+      if (!examTopics.length) {
+        container.innerHTML = '';
+        return;
+      }
+      container.innerHTML = examTopics.map(function(t) {
+        var selected = selectedTopicIds.has(t.id) ? ' selected' : '';
+        return '<button class="topic-tag' + selected + '" data-topic-id="' + t.id + '" onclick="toggleTopic(\'' + t.id + '\')">'
+          + esc(t.name) + ' (' + (t.question_count || 0) + ')</button>';
+      }).join('');
+    }
+
+    function toggleTopic(topicId) {
+      if (selectedTopicIds.has(topicId)) {
+        selectedTopicIds.delete(topicId);
+      } else {
+        selectedTopicIds.add(topicId);
+      }
+      renderTopics();
+      updateQuestionUI();
+    }
+
+    function updateQuestionUI() {
+      if (selectedTopicIds.size > 0) {
+        var total = 0;
+        examTopics.forEach(function(t) {
+          if (selectedTopicIds.has(t.id)) total += (t.question_count || 0);
+        });
+        $('#questionCount').value = total;
+        $('#questionCount').disabled = true;
+        $('#maxQuestionsHint').textContent = total + ' preguntas de ' + selectedTopicIds.size + ' tema(s) (todas)';
+        $('#allQuestionsBtn').style.display = 'none';
+      } else {
+        $('#questionCount').disabled = false;
+        $('#maxQuestionsHint').textContent = 'Máximo: ' + examQuestionCount;
+        $('#allQuestionsBtn').style.display = '';
+        var cur = parseInt($('#questionCount').value);
+        if (!cur || cur > examQuestionCount) $('#questionCount').value = Math.min(10, examQuestionCount || 1);
+      }
+    }
+
+    function selectMode(mode) {
+      selectedMode = mode;
+      $$('.mode-option').forEach(m => m.classList.toggle('selected', m.dataset.mode === mode));
+    }
+
+    function setAllQuestions() {
+      var total = examQuestionCount;
+      if (selectedTopicIds.size > 0) {
+        total = 0;
+        examTopics.forEach(function(t) {
+          if (selectedTopicIds.has(t.id)) total += (t.question_count || 0);
+        });
+      }
+      $('#questionCount').value = total;
+    }
+
+    async function startExam() {
+      if (!selectedExamId) return toastError('Selecciona un examen');
+      var topicIds = selectedTopicIds.size > 0 ? Array.from(selectedTopicIds) : [];
+      
+      var count;
+      if (topicIds.length > 0) {
+        // When topics are selected, use ALL questions from those topics
+        count = 0;
+        examTopics.forEach(function(t) {
+          if (selectedTopicIds.has(t.id)) count += (t.question_count || 0);
+        });
+      } else {
+        count = parseInt($('#questionCount').value) || examQuestionCount;
+        if (count < 1 || count > examQuestionCount) return toastError('Elige entre 1 y ' + examQuestionCount + ' preguntas.');
+      }
+
+      try {
+        await initExam(selectedExamId, selectedMode, count, topicIds);
+        window.location.href = 'exam.html';
+      } catch (err) {
+        toastError('Error: ' + err.message);
+      }
+    }
+
+    function renderHistory(exams) {
+      const container = $('#examHistory');
+      if (!exams.length) {
+        container.innerHTML = '<div class="text-muted text-sm" style="padding:12px;">Aún no has realizado exámenes.</div>';
+        return;
+      }
+      container.innerHTML = exams.map(e => {
+        const cls = e.score >= 80 ? 'high' : e.score >= 50 ? 'medium' : 'low';
+        const date = e.completed_at ? new Date(e.completed_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '—';
+        return `<div class="history-item">
+          <div>
+            <div style="font-weight:600;font-size:0.9rem;">${esc(e.exam_name || '—')}</div>
+            <div class="text-muted" style="font-size:0.78rem;">${date} · ${e.correct_answers}/${e.total_questions} aciertos · ${esc(e.category_name || '')}</div>
+          </div>
+          <div class="history-score ${cls}">${e.score}%</div>
+        </div>`;
+      }).join('');
+    }
+
+    checkSession().then(session => {
+      if (!session) { window.location.href = 'index.html'; return; }
+      if (session.profile?.role === 'admin') { window.location.href = 'admin.html'; return; }
+      $('#userDisplay').textContent = '👤 ' + (session.user?.email || 'usuario');
+      loadDashboard();
+    });
+  </script>
+</body>
+</html>
