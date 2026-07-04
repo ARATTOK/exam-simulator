@@ -159,8 +159,9 @@
       const qNum = examState.cycleIndex + 1;
       $('#questionNumber').textContent = 'Pregunta ' + qNum + ' de ' + totalInCycle;
 
-      // Ensure newlines are preserved in the text content
-      $('#questionText').textContent = q.text ? q.text.replace(/\\n/g, '\n') : '';
+      // Preserve line breaks and formatting (handle both \n literal and actual newlines)
+      var questionHtml = esc(q.text).replace(/\\n/g, '\n').replace(/\n/g, '<br>');
+      $('#questionText').innerHTML = questionHtml;
 
       const imgContainer = $('#questionImageContainer');
       imgContainer.innerHTML = q.image_url
@@ -178,7 +179,7 @@
             + '<input type="' + (isMultipleCorrect(q) ? 'checkbox' : 'radio') + '" name="option_' + q.id + '" value="' + o.id + '" aria-label="' + esc(o.text) + '">'
             + '<span class="option-number">' + (i + 1) + '</span>'
             + '<span class="option-indicator"></span>'
-            + '<span class="option-text">' + esc(o.text) + '</span>'
+            + '<span class="option-text">' + esc(o.text).replace(/\\n/g, '\n').replace(/\n/g, '<br>') + '</span>'
             + '</div>';
         }).join('');
 
