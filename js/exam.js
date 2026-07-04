@@ -105,14 +105,18 @@ async function submitAnswer(selectedOptionIds) {
     cycle_number: examState.cycleNumber,
   });
 
-  if (isCorrect) {
-    examState.mastered.add(q.id);
-    if (!examState.failed.has(q.id)) {
-      examState.score++;
+  if (examState.mode === 'practice') {
+    if (isCorrect) {
+      examState.mastered.add(q.id);
+      if (!examState.failed.has(q.id)) {
+        examState.score++;
+      }
+    } else {
+      examState.failed.add(q.id);
+      examState.mastered.delete(q.id);
     }
   } else {
-    examState.failed.add(q.id);
-    examState.mastered.delete(q.id);
+    if (isCorrect) examState.score++;
   }
 
   examState.cycleIndex++;
@@ -125,6 +129,8 @@ async function submitAnswer(selectedOptionIds) {
 }
 
 async function startNextCycle() {
+  if (examState.mode === 'exam') return await finishExam();
+
   const pending = examState.allQuestions.filter(q => !examState.mastered.has(q.id));
   if (pending.length === 0) return await finishExam();
 

@@ -277,11 +277,13 @@
       var isCorrect = arraysEqual(sortedSubmitted, sortedCorrect);
 
       var labels = $$('#optionsContainer .radio-label');
-      for (var i = 0; i < labels.length; i++) {
-        var input = labels[i].querySelector('input');
-        var isOptCorrect = correctIds.indexOf(input.value) !== -1;
-        if (input.checked) labels[i].classList.add(isOptCorrect ? 'correct' : 'incorrect');
-        else if (isOptCorrect) labels[i].classList.add('correct');
+      if (examState.mode === 'practice') {
+        for (var i = 0; i < labels.length; i++) {
+          var input = labels[i].querySelector('input');
+          var isOptCorrect = correctIds.indexOf(input.value) !== -1;
+          if (input.checked) labels[i].classList.add(isOptCorrect ? 'correct' : 'incorrect');
+          else if (isOptCorrect) labels[i].classList.add('correct');
+        }
       }
 
       if (examState.mode === 'practice') {
@@ -404,9 +406,17 @@
 
     function updateProgress() {
       if (!examState) return;
-      var pct = examState.totalQuestions > 0 ? Math.round((examState.mastered.size / examState.totalQuestions) * 100) : 0;
-      $('#progressFill').style.width = pct + '%';
-      $('#progressLabel').textContent = examState.mastered.size + '/' + examState.totalQuestions + ' dominadas';
+      if (examState.mode === 'practice') {
+        var pct = examState.totalQuestions > 0 ? Math.round((examState.mastered.size / examState.totalQuestions) * 100) : 0;
+        $('#progressFill').style.width = pct + '%';
+        $('#progressLabel').textContent = examState.mastered.size + '/' + examState.totalQuestions + ' dominadas';
+      } else {
+        var answered = examState.cycleIndex;
+        var total = examState.currentCycle.length;
+        var pct = total > 0 ? Math.round((answered / total) * 100) : 0;
+        $('#progressFill').style.width = pct + '%';
+        $('#progressLabel').textContent = answered + '/' + total + ' respondidas';
+      }
       $('#cycleInfo').textContent = 'Ronda ' + examState.cycleNumber + ' · ' + (examState.mode === 'practice' ? 'Práctica' : 'Examen');
     }
 
