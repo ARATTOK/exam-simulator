@@ -106,8 +106,8 @@ async function submitAnswer(selectedOptionIds) {
   });
 
   if (isCorrect) {
+    examState.mastered.add(q.id);
     if (!examState.failed.has(q.id)) {
-      examState.mastered.add(q.id);
       examState.score++;
     }
   } else {
