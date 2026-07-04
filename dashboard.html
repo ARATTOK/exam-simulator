@@ -204,7 +204,7 @@
       }
       container.innerHTML = examTopics.map(function(t) {
         var selected = selectedTopicIds.has(t.id) ? ' selected' : '';
-        return '<button class="topic-tag' + selected + '" data-topic-id="' + t.id + '" onclick="toggleTopic(' + t.id + ')">'
+        return '<button class="topic-tag' + selected + '" data-topic-id="' + t.id + '" onclick="toggleTopic(\'' + t.id + '\')">'
           + esc(t.name) + ' (' + (t.question_count || 0) + ')</button>';
       }).join('');
     }
