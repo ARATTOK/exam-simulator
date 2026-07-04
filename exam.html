@@ -305,9 +305,8 @@
       var result = await submitAnswer(submittedOptionIds);
 
       if (result && result.done) {
-        $('#examActions').innerHTML = '';
-        show('#finishBtn');
-        $('#finishBtn').innerHTML = 'Ver resultados (' + result.score + '%)';
+        examResult = result;
+        showReviewSection(result);
         stopTimer();
         return;
       }
@@ -350,33 +349,37 @@
       var correct = result.correct || 0;
       var total = result.total || 0;
       var flagged = result.flagged || [];
+      var failed = result.failed || new Set();
+      var failedCount = failed.size || 0;
       var incorrect = total - correct;
       var score = result.score || 0;
 
       $('#reviewSummary').innerHTML = `
         <div class="review-stat-card"><div class="review-stat-value" style="color:var(--success);">${correct}</div><div class="review-stat-label">Correctas</div></div>
-        <div class="review-stat-card"><div class="review-stat-value" style="color:var(--error);">${incorrect}</div><div class="review-stat-label">Incorrectas</div></div>
+        <div class="review-stat-card"><div class="review-stat-value" style="color:var(--error);">${failedCount}</div><div class="review-stat-label">Falladas</div></div>
         <div class="review-stat-card"><div class="review-stat-value" style="color:var(--warning);">${flagged.length}</div><div class="review-stat-label">Marcadas</div></div>
         <div class="review-stat-card"><div class="review-stat-value">${score}%</div><div class="review-stat-label">Puntuación</div></div>
       `;
 
-      renderReviewList(result.allQuestions, result.mastered, result.flagged, 'all');
+      renderReviewList(result.allQuestions, result.mastered, result.flagged, result.failed, 'all');
       initIcons();
     }
 
-    function renderReviewList(allQuestions, mastered, flagged, filter) {
+    function renderReviewList(allQuestions, mastered, flagged, failed, filter) {
       var list = $('#reviewList');
       var html = '';
       var idx = 0;
+      failed = failed || new Set();
       for (var i = 0; i < allQuestions.length; i++) {
         var q = allQuestions[i];
         var isMastered = mastered.has(q.id);
+        var isFailed = failed.has(q.id);
         var isFlagged = flagged && flagged.find(function(f) { return f.id === q.id; });
-        var status = isMastered ? 'correct' : 'incorrect';
+        var status = isMastered ? 'correct' : (isFailed ? 'incorrect' : 'unanswered');
         if (isFlagged && !isMastered) status = 'flagged';
 
         if (filter === 'flagged' && !isFlagged) continue;
-        if (filter === 'wrong' && isMastered) continue;
+        if (filter === 'wrong' && !isFailed && !isFlagged) continue;
 
         idx++;
         html += '<div class="review-item ' + status + '">';
@@ -384,8 +387,9 @@
         html += '<div class="review-q-text">' + (q.text || q.question_text || '').substring(0, 150) + ((q.text || q.question_text || '').length > 150 ? '...' : '') + '</div>';
         html += '<div class="review-q-status ' + status + '">';
         if (isMastered) html += 'Correcta';
+        else if (isFailed) html += 'Fallada';
         else if (isFlagged) html += '<i data-lucide="flag"></i> Marcada';
-        else html += 'Incorrecta';
+        else html += 'Sin responder';
         html += '</div></div>';
       }
       list.innerHTML = html || '<div class="text-muted text-sm" style="padding:16px;text-align:center;">No hay preguntas para este filtro.</div>';
@@ -395,7 +399,7 @@
     function filterReview(filter) {
       if (!examResult) return;
       $$('.review-filter').forEach(function(b) { b.classList.toggle('active', b.dataset.filter === filter); b.classList.toggle('btn-primary', b.dataset.filter === filter); b.classList.toggle('btn-secondary', b.dataset.filter !== filter); });
-      renderReviewList(examResult.allQuestions, examResult.mastered, examResult.flagged, filter);
+      renderReviewList(examResult.allQuestions, examResult.mastered, examResult.flagged, examResult.failed, filter);
     }
 
     function updateProgress() {

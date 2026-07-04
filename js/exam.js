@@ -125,8 +125,9 @@ async function submitAnswer(selectedOptionIds) {
 }
 
 async function startNextCycle() {
-  const pending = examState.allQuestions.filter(q => !examState.mastered.has(q.id) && !examState.failed.has(q.id));
-  if (pending.length === 0) return await finishExam();
+  const pending = examState.allQuestions.filter(q => !examState.mastered.has(q.id));
+  const nonFailedPending = pending.filter(q => !examState.failed.has(q.id));
+  if (nonFailedPending.length === 0) return await finishExam();
 
   examState.cycleNumber++;
   examState.currentCycle = shuffle(pending);
@@ -154,6 +155,7 @@ async function finishExam() {
     flagged: flaggedQuestions,
     allQuestions: examState.allQuestions,
     mastered: examState.mastered,
+    failed: examState.failed,
   };
 }
 
